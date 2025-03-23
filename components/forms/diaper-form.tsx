@@ -17,7 +17,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "@/components/ui/use-toast"
 
 const formSchema = z.object({
   diaperType: z.string(),
@@ -70,11 +70,8 @@ export function DiaperForm({ onSuccess, onCancel }: DiaperFormProps) {
       const eventData = {
         childId: selectedChild.id,
         eventType: "diaper",
-        diaperType: values.diaperType,
         details: `Type: ${values.diaperType}${values.notes ? `\nNotes: ${values.notes}` : ""}`,
-        notes: values.notes || "",
         timestamp: dateTime.toISOString(),
-        value: 1, // Add a default value
       }
 
       console.log("Submitting diaper event:", eventData)
@@ -134,10 +131,16 @@ export function DiaperForm({ onSuccess, onCancel }: DiaperFormProps) {
                     <SelectValue placeholder="Select diaper type" />
                   </SelectTrigger>
                 </FormControl>
-                <SelectContent>
-                  <SelectItem value="wet">Wet</SelectItem>
-                  <SelectItem value="dirty">Dirty</SelectItem>
-                  <SelectItem value="both">Both</SelectItem>
+                <SelectContent position="popper" className="z-[99999]">
+                  <SelectItem value="wet" className="cursor-pointer">
+                    Wet
+                  </SelectItem>
+                  <SelectItem value="dirty" className="cursor-pointer">
+                    Dirty
+                  </SelectItem>
+                  <SelectItem value="both" className="cursor-pointer">
+                    Both
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -164,7 +167,7 @@ export function DiaperForm({ onSuccess, onCancel }: DiaperFormProps) {
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-50" align="start">
+                  <PopoverContent className="w-auto p-0 z-[99999]" align="start">
                     <Calendar
                       mode="single"
                       selected={field.value}

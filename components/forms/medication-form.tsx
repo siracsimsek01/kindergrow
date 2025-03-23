@@ -5,62 +5,57 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { format } from "date-fns"
-import { CalendarIcon, Clock } from 'lucide-react'
+import { Clock } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import { useToast } from "@/components/ui/use-toast"
-import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks"
-import { addEventAsync } from "@/lib/redux/slices/eventsSlice"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/components/ui/use-toast"
+import { useChildContext } from "@/contexts/child-context"
+import { addEvent } from "@/app/actions"
+import { Switch } from "@/components/ui/switch"
+import { DatePicker } from "@/components/ui/date-picker"
 
 const formSchema = z.object({
-  time: z.date({
-    required_error: "Time is required.",
-  }),
-  name: z.string().min(1, {
+  name: z.string().min(2, {
     message: "Medication name is required.",
   }),
   dosage: z.string().min(1, {
     message: "Dosage is required.",
   }),
-  reason: z.string().optional(),
-  notes: z.string().optional(),
+  date: z.date({
+    required_error: "Date is required.",
+  }),
+  time: z.string().min(1, {
+    message: "Time is required.",
+  }),
+  frequency: z.enum(["once", "daily", "twice-daily", "three-times-daily", "as-needed"]),
+  instructions: z.string().optional(),
+  isRecurring: z.boolean().default(false),
+  endDate: z.date().optional(),
 })
 
-interface MedicationFormProps {
-  onSuccess?: () => void
-}
-
-export function MedicationForm({ onSuccess }: MedicationFormProps) {
-  const dispatch = useAppDispatch()
+export function MedicationForm({ onSuccess }: { onSuccess?: () => void }) {
   const { toast } = useToast()
+  const { selectedChild } = useChildContext()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const selectedChild = useAppSelector((state) => state.children.selectedChild)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      time: new Date(),
       name: "",
       dosage: "",
-      reason: "",
-      notes: "",
+      date: new Date(),
+      time: format(new Date(), "HH:mm"),
+      frequency: "once",
+      instructions: "",
+      isRecurring: false,
     },
   })
+
+  const isRecurring = form.watch("isRecurring")
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!selectedChild) {
@@ -76,33 +71,49 @@ export function MedicationForm({ onSuccess }: MedicationFormProps) {
       setIsSubmitting(true)
       console.log("Submitting medication data:", values)
 
-      const resultAction = await dispatch(
-        addEventAsync({
-          childId: selectedChild.id,
-          type: "medication",
-          data: {
-            time: values.time.toISOString(),
-            name: values.name,
-            dosage: values.dosage,
-            reason: values.reason || "",
-            notes: values.notes || "",
-          },
-        })
-      )
+      // Format date and time
+      const date = values.date
+      const time = values.time
+      const [hours, minutes] = time.split(":").map(Number)
+      const startTime = new Date(date)
+      startTime.setHours(hours, minutes)
 
-      if (addEventAsync.fulfilled.match(resultAction)) {
+      const details = `Medication: ${values.name}
+Dosage: ${values.dosage}
+Frequency: ${values.frequency}
+${values.instructions ? `Instructions: ${values.instructions}` : ""}`
+
+      // Try to parse the dosage as a number if possible
+      let dosageValue = 0
+      const numericDosage = Number.parseFloat(values.dosage)
+      if (!isNaN(numericDosage)) {
+        dosageValue = numericDosage
+      }
+
+      const result = await addEvent({
+        childId: selectedChild.id,
+        eventType: "medication",
+        startTime: startTime.toISOString(),
+        endTime: startTime.toISOString(),
+        details: details,
+        value: dosageValue,
+      })
+
+      if (result.success) {
         toast({
-          title: "Medication record added",
-          description: `Medication record has been added successfully.`,
+          title: "Medication added",
+          description: `${values.name} has been added for ${selectedChild.name}.`,
         })
 
         // Reset form
         form.reset({
-          time: new Date(),
           name: "",
           dosage: "",
-          reason: "",
-          notes: "",
+          date: new Date(),
+          time: format(new Date(), "HH:mm"),
+          frequency: "once",
+          instructions: "",
+          isRecurring: false,
         })
 
         // Call onSuccess callback if provided
@@ -110,13 +121,13 @@ export function MedicationForm({ onSuccess }: MedicationFormProps) {
           onSuccess()
         }
       } else {
-        throw new Error("Failed to add medication record")
+        throw new Error(result.error || "Failed to add medication")
       }
     } catch (error) {
-      console.error("Error adding medication record:", error)
+      console.error("Error adding medication:", error)
       toast({
         title: "Error",
-        description: "Failed to add medication record. Please try again.",
+        description: "Failed to add medication. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -126,74 +137,43 @@ export function MedicationForm({ onSuccess }: MedicationFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="time"
+          name="name"
           render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Time</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? format(field.value, "PPP HH:mm") : <span>Select date and time</span>}
-                      <Clock className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={(date) => {
-                      if (date) {
-                        const currentDate = field.value || new Date()
-                        date.setHours(currentDate.getHours())
-                        date.setMinutes(currentDate.getMinutes())
-                        field.onChange(date)
-                      }
-                    }}
-                    initialFocus
-                  />
-                  <div className="p-3 border-t border-border">
-                    <Input
-                      type="time"
-                      value={format(field.value || new Date(), "HH:mm")}
-                      onChange={(e) => {
-                        const [hours, minutes] = e.target.value.split(":")
-                        const newDate = new Date(field.value || new Date())
-                        newDate.setHours(parseInt(hours))
-                        newDate.setMinutes(parseInt(minutes))
-                        field.onChange(newDate)
-                      }}
-                    />
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <FormDescription>When was the medication given?</FormDescription>
+            <FormItem>
+              <FormLabel>Medication Name</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter medication name" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <FormField
+          control={form.control}
+          name="dosage"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Dosage</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., 5ml, 10mg" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex gap-4">
           <FormField
             control={form.control}
-            name="name"
+            name="date"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Medication Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter medication name" {...field} />
-                </FormControl>
-                <FormDescription>Name of the medication</FormDescription>
+              <FormItem className="flex-1">
+                <FormLabel>Start Date</FormLabel>
+                <DatePicker date={field.value} setDate={field.onChange} />
                 <FormMessage />
               </FormItem>
             )}
@@ -201,14 +181,16 @@ export function MedicationForm({ onSuccess }: MedicationFormProps) {
 
           <FormField
             control={form.control}
-            name="dosage"
+            name="time"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Dosage</FormLabel>
+              <FormItem className="flex-1">
+                <FormLabel>Time</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., 5ml, 1 tablet" {...field} />
+                  <div className="flex">
+                    <Input type="time" {...field} className="cursor-pointer" />
+                    <Clock className="ml-2 h-4 w-4 opacity-50 self-center" />
+                  </div>
                 </FormControl>
-                <FormDescription>Amount of medication given</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -217,14 +199,34 @@ export function MedicationForm({ onSuccess }: MedicationFormProps) {
 
         <FormField
           control={form.control}
-          name="reason"
+          name="frequency"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Reason</FormLabel>
-              <FormControl>
-                <Input placeholder="Reason for medication" {...field} />
-              </FormControl>
-              <FormDescription>Why was the medication given?</FormDescription>
+              <FormLabel>Frequency</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="cursor-pointer">
+                    <SelectValue placeholder="Select frequency" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent position="popper" className="z-[99999]">
+                  <SelectItem value="once" className="cursor-pointer">
+                    Once
+                  </SelectItem>
+                  <SelectItem value="daily" className="cursor-pointer">
+                    Daily
+                  </SelectItem>
+                  <SelectItem value="twice-daily" className="cursor-pointer">
+                    Twice Daily
+                  </SelectItem>
+                  <SelectItem value="three-times-daily" className="cursor-pointer">
+                    Three Times Daily
+                  </SelectItem>
+                  <SelectItem value="as-needed" className="cursor-pointer">
+                    As Needed
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -232,34 +234,56 @@ export function MedicationForm({ onSuccess }: MedicationFormProps) {
 
         <FormField
           control={form.control}
-          name="notes"
+          name="isRecurring"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <FormLabel>Recurring Medication</FormLabel>
+                <FormDescription>Is this a recurring medication?</FormDescription>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} className="cursor-pointer" />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        {isRecurring && (
+          <FormField
+            control={form.control}
+            name="endDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>End Date (Optional)</FormLabel>
+                <DatePicker date={field.value} setDate={field.onChange} />
+                <FormDescription>When should this medication end? Leave blank if ongoing.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
+        <FormField
+          control={form.control}
+          name="instructions"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Notes</FormLabel>
+              <FormLabel>Instructions (Optional)</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="Any additional notes about the medication"
-                  className="resize-none"
-                  {...field}
-                />
+                <Textarea placeholder="Add any special instructions here..." className="resize-none" {...field} />
               </FormControl>
-              <FormDescription>Optional notes about the medication</FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? (
-            <>
-              <LoadingSpinner size="sm" className="mr-2" />
-              Saving...
-            </>
-          ) : (
-            "Save Medication Record"
-          )}
-        </Button>
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isSubmitting || !selectedChild}>
+            {isSubmitting ? "Adding..." : "Add Medication"}
+          </Button>
+        </div>
       </form>
     </Form>
   )
 }
+

@@ -1,11 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MedicationEntriesTable } from "@/components/medication-entries-table"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { MedicationFormModal } from "./medication-form-modal"
-import { useState } from "react"
 
 export default function MedicationsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)

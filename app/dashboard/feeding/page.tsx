@@ -12,7 +12,8 @@ import { useQueryEvents } from "@/hooks/use-query-events"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { FeedingFormModal } from "./feeding-form-modal"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { FeedingForm } from "@/components/forms/feeding-form"
 
 export default function FeedingPage() {
   const selectedChild = useAppSelector((state) => state.children.selectedChild)
@@ -42,6 +43,11 @@ export default function FeedingPage() {
     return <LoadingScreen />
   }
 
+  const handleSuccess = () => {
+    setIsModalOpen(false)
+    queryClient.invalidateQueries({ queryKey: ["events"] })
+  }
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -67,7 +73,19 @@ export default function FeedingPage() {
       </Card>
 
       <FeedingEntriesTable events={events || []} />
-      <FeedingFormModal open={isModalOpen} onOpenChange={setIsModalOpen} />
+
+      {/* Feeding Form Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add Feeding</DialogTitle>
+            <DialogDescription>
+              {selectedChild ? `Record a new feeding for ${selectedChild.name}` : "Please select a child first"}
+            </DialogDescription>
+          </DialogHeader>
+          <FeedingForm onSuccess={handleSuccess} />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

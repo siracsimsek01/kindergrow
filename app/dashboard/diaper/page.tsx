@@ -11,7 +11,8 @@ import { DiaperChart } from "@/components/charts/diaper-chart"
 import { DiaperEntriesTable } from "@/components/diaper-entries-table"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { DiaperFormModal } from "./diaper-form-modal"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DiaperForm } from "@/components/forms/diaper-form"
 
 export default function DiaperPage() {
   const selectedChild = useAppSelector((state) => state.children.selectedChild)
@@ -21,7 +22,11 @@ export default function DiaperPage() {
   })
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  const { data: events, isLoading } = useQueryEvents({
+  const {
+    data: events,
+    isLoading,
+    refetch,
+  } = useQueryEvents({
     childId: selectedChild?.id,
     eventType: "diaper",
     startDate: dateRange.from?.toISOString(),
@@ -38,6 +43,11 @@ export default function DiaperPage() {
 
   if (isLoading) {
     return <LoadingScreen />
+  }
+
+  const handleSuccess = () => {
+    setIsModalOpen(false)
+    refetch()
   }
 
   return (
@@ -66,7 +76,19 @@ export default function DiaperPage() {
       </Card>
 
       <DiaperEntriesTable events={events || []} />
-      <DiaperFormModal open={isModalOpen} onOpenChange={setIsModalOpen} />
+
+      {/* Diaper Form Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[500px] z-[99999]">
+          <DialogHeader>
+            <DialogTitle>Add Diaper Change</DialogTitle>
+            <DialogDescription>
+              {selectedChild ? `Record a new diaper change for ${selectedChild.name}` : "Please select a child first"}
+            </DialogDescription>
+          </DialogHeader>
+          <DiaperForm onSuccess={handleSuccess} onCancel={() => setIsModalOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
