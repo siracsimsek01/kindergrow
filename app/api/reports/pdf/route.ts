@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Child ID is required' }, { status: 400 });
     }
     
-    const client = await clientPromise;
-    const db = client.db("kindergrow");
+    const { client } = await clientPromise();
+    const db = client.db(process.env.MONGO_DB);
     
     // Verify child belongs to user
     const child = await db.collection("children").findOne({
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     const pdfBuffer = await generateDailyReportPDF(child, reportDate, sleepEntries, feedingEntries, diaperEntries, medicationEntries);
     
     // Return PDF as response
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(pdfBuffer as Buffer, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="daily_report_${child.name}_${date}.pdf"`
@@ -163,7 +163,7 @@ async function generateDailyReportPDF(child, date, sleepEntries, feedingEntries,
             : 'ongoing';
           
           const duration = entry.endTime 
-            ? formatDuration(new Date(entry.endTime) - new Date(entry.startTime))
+            ? formatDuration(new Date(entry.endTime).getTime() - new Date(entry.startTime).getTime())
             : 'ongoing';
           
           doc.fontSize(12).text(`${startTime} to ${endTime} (${duration})`);

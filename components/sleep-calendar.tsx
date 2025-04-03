@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { GraphLoader } from "@/components/ui/graph-loader"
-import { useQueryEvents } from "@/hooks/use-query-events"
+
 
 export function SleepCalendar() {
   const selectedChild = useAppSelector((state) => state.children.selectedChild)
@@ -125,5 +125,37 @@ export function SleepCalendar() {
       </CardContent>
     </Card>
   )
+}
+function useQueryEvents({ childId, eventType, startDate, endDate }: { childId: string; eventType: string; startDate: Date; endDate: Date }): { data: any; isLoading: boolean } {
+  const [data, setData] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+
+  useEffect(() => {
+    if (!childId || !eventType || !startDate || !endDate) {
+      setData([])
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
+
+    // Simulate an API call
+    const fetchData = async () => {
+      try {
+        const response = await fetch(`/api/events?childId=${childId}&eventType=${eventType}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`)
+        const result = await response.json()
+        setData(result)
+      } catch (error) {
+        console.error("Error fetching events:", error)
+        setData([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [childId, eventType, startDate, endDate])
+
+  return { data, isLoading }
 }
 

@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Child ID is required' }, { status: 400 });
     }
     
-    const client = await clientPromise;
-    const db = client.db("KinderGrow");
+    const { client } = await clientPromise();
+    const db = client.db(process.env.MONGO_DB);
     
     // Verify child belongs to user
     const child = await db.collection("children").findOne({

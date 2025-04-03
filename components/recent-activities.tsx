@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 export function RecentActivities() {
-  const { selectedChild, lastUpdated } = useChildContext()
+  const { selectedChild, lastUpdated, isRefreshing } = useChildContext()
   const [activities, setActivities] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchActivities = useCallback(async () => {
     if (!selectedChild) {
@@ -20,7 +21,14 @@ export function RecentActivities() {
     }
 
     try {
-      setIsLoading(true)
+      // Only set loading to true on initial fetch, not during refreshes
+      if (!isRefreshing) {
+        setIsLoading(true)
+      }
+
+      setError(null)
+      console.log(`Fetching activities for child ID: ${selectedChild.id}`)
+
       const response = await fetch(`/api/events?childId=${selectedChild.id}&limit=20`, {
         cache: "no-store",
         headers: {
@@ -33,6 +41,7 @@ export function RecentActivities() {
       }
 
       const events = await response.json()
+      console.log(`Received ${events.length} events for child ID: ${selectedChild.id}`)
 
       // Sort by timestamp (newest first)
       const sortedEvents = events
@@ -49,14 +58,18 @@ export function RecentActivities() {
       setActivities(sortedEvents)
     } catch (error) {
       console.error("Error fetching activities:", error)
+      setError("Failed to fetch activities. Please try again.")
     } finally {
       setIsLoading(false)
     }
-  }, [selectedChild])
+  }, [selectedChild, isRefreshing])
 
   useEffect(() => {
-    fetchActivities()
-  }, [fetchActivities, lastUpdated])
+    if (selectedChild) {
+      console.log("Selected child changed or lastUpdated triggered, fetching activities")
+      fetchActivities()
+    }
+  }, [fetchActivities, selectedChild, lastUpdated])
 
   const getEventTypeIcon = (type: string) => {
     switch (type) {
@@ -131,16 +144,26 @@ export function RecentActivities() {
         <CardDescription>Latest recorded events</CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {isLoading && !isRefreshing ? (
           <div className="flex h-[300px] items-center justify-center">
             <LoadingSpinner size="lg" />
           </div>
+        ) : error ? (
+          <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
         ) : activities.length === 0 ? (
           <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
-            <p className="text-sm text-muted-foreground">No activities found</p>
+            <p className="text-sm text-muted-foreground">No activities found for {selectedChild.name}</p>
           </div>
         ) : (
           <div className="space-y-4">
+            {isRefreshing && (
+              <div className="flex items-center justify-center py-2">
+                <LoadingSpinner size="sm" className="mr-2" />
+                <span className="text-sm text-muted-foreground">Refreshing...</span>
+              </div>
+            )}
             {activities.map((activity) => (
               <div
                 key={activity.id || activity.timestamp}

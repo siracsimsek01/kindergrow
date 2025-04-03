@@ -1,12 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useState } from "react"
+import { z } from "zod"
 import { useForm } from "react-hook-form"
-import * as z from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -23,76 +22,67 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
-import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { useAppDispatch } from "@/lib/redux/hooks"
-import { addChildAsync } from "@/lib/redux/slices/childrenSlice"
 
 const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
+  name: z.string().min(1, "Name is required"),
+  birthDate: z.date({
+    required_error: "Birth date is required",
   }),
-  dateOfBirth: z.date({
-    required_error: "Date of birth is required.",
-  }),
-  sex: z.enum(["Male", "Female"], {
-    required_error: "Please select a gender.",
+  gender: z.enum(["male", "female", "other"], {
+    required_error: "Gender is required",
   }),
 })
+
+type FormValues = z.infer<typeof formSchema>
 
 interface AddChildModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
-export function AddChildModal({ open, onOpenChange }: AddChildModalProps) {
-  const dispatch = useAppDispatch()
-  const { toast } = useToast()
+export function AddChildModal({ open, onOpenChange, onSuccess }: AddChildModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      dateOfBirth: new Date(),
-      sex: undefined,
+      gender: "male",
     },
   })
 
-  // Reset form when modal opens
-  useEffect(() => {
-    if (open) {
-      form.reset({
-        name: "",
-        dateOfBirth: new Date(),
-        sex: undefined,
-      })
-    }
-  }, [open, form])
-
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  const onSubmit = async (values: FormValues) => {
     try {
       setIsSubmitting(true)
-      console.log("Submitting child data:", values)
 
-      const resultAction = await dispatch(
-        addChildAsync({
-          name: values.name,
-          dateOfBirth: values.dateOfBirth.toISOString(),
-          sex: values.sex,
-        }),
-      )
+      const response = await fetch("/api/children", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      })
 
-      if (addChildAsync.fulfilled.match(resultAction)) {
-        toast({
-          title: "Child added",
-          description: `${values.name} has been added successfully.`,
-        })
-
-        // Reset form and close modal
-        form.reset()
-        onOpenChange(false)
-      } else {
+      if (!response.ok) {
         throw new Error("Failed to add child")
+      }
+
+      toast({
+        title: "Success",
+        description: "Child added successfully",
+      })
+
+      // Reset form
+      form.reset()
+
+      // Close modal
+      onOpenChange(false)
+
+      // Trigger refresh
+      if (onSuccess) {
+        onSuccess()
       }
     } catch (error) {
       console.error("Error adding child:", error)
@@ -108,13 +98,13 @@ export function AddChildModal({ open, onOpenChange }: AddChildModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add Child</DialogTitle>
-          <DialogDescription>Add a new child to track their growth and activities.</DialogDescription>
+          <DialogDescription>Add a new child to track their development.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
               name="name"
@@ -124,7 +114,6 @@ export function AddChildModal({ open, onOpenChange }: AddChildModalProps) {
                   <FormControl>
                     <Input placeholder="Enter child's name" {...field} />
                   </FormControl>
-                  <FormDescription>Your child's first name</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -132,18 +121,18 @@ export function AddChildModal({ open, onOpenChange }: AddChildModalProps) {
 
             <FormField
               control={form.control}
-              name="dateOfBirth"
+              name="birthDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Date of birth</FormLabel>
+                  <FormLabel>Birth Date</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
-                          variant={"outline"}
+                          variant="outline"
                           className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
                         >
-                          {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                          {field.value ? format(field.value, "PPP") : "Select birth date"}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
                       </FormControl>
@@ -153,12 +142,14 @@ export function AddChildModal({ open, onOpenChange }: AddChildModalProps) {
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
-                        disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                        disabled={(date) => date > new Date()}
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
-                  <FormDescription>Your child's date of birth</FormDescription>
+                  <FormDescription>
+                    Your child's birth date will be used to calculate age-appropriate milestones.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -166,30 +157,29 @@ export function AddChildModal({ open, onOpenChange }: AddChildModalProps) {
 
             <FormField
               control={form.control}
-              name="sex"
+              name="gender"
               render={({ field }) => (
                 <FormItem className="space-y-3">
                   <FormLabel>Gender</FormLabel>
                   <FormControl>
-                    <RadioGroup
-                      onValueChange={(value) => {
-                        field.onChange(value as "Male" | "Female")
-                      }}
-                      defaultValue={field.value}
-                      value={field.value}
-                      className="flex flex-col space-y-1"
-                    >
-                      <FormItem className="flex items-center space-x-3 space-y-0">
+                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4">
+                      <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
-                          <RadioGroupItem value="Male" />
+                          <RadioGroupItem value="male" />
                         </FormControl>
-                        <FormLabel className="font-normal cursor-pointer">Male</FormLabel>
+                        <FormLabel className="font-normal">Male</FormLabel>
                       </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
-                          <RadioGroupItem value="Female" />
+                          <RadioGroupItem value="female" />
                         </FormControl>
-                        <FormLabel className="font-normal cursor-pointer">Female</FormLabel>
+                        <FormLabel className="font-normal">Female</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="other" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Other</FormLabel>
                       </FormItem>
                     </RadioGroup>
                   </FormControl>
@@ -199,15 +189,11 @@ export function AddChildModal({ open, onOpenChange }: AddChildModalProps) {
             />
 
             <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Adding...
-                  </>
-                ) : (
-                  "Add Child"
-                )}
+                {isSubmitting ? "Adding..." : "Add Child"}
               </Button>
             </DialogFooter>
           </form>

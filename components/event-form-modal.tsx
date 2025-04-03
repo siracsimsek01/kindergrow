@@ -106,11 +106,12 @@ export function EventFormModal({ open, onOpenChange }: EventFormModalProps) {
                             </div>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="time" className="text-right">
-                                Time
-              <div className="col-span-3">
-                <TimePicker value={time} onChange={setTime} className="w-full" />
-              </div>
+                <Label htmlFor="time" className="text-right">
+                    Time
+                </Label>
+                <div className="col-span-3">
+                    <TimePicker value={time} onChange={setTime} className="w-full" />
+                </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="title" className="text-right">

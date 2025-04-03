@@ -1,505 +1,522 @@
 "use server"
 
-import { auth } from "@clerk/nextjs/server"
+import { v4 as uuidv4 } from "uuid"
 import connectToDatabase from "@/lib/mongodb"
-import { addDays, subMonths } from "date-fns"
+import { addDays, subMonths, differenceInDays } from "date-fns"
 
-// Seed data constants
-const CHILDREN = [
-  {
-    name: "Emma",
-    dateOfBirth: "2022-03-15",
-    sex: "Female",
-  },
-  {
-    name: "Noah",
-    dateOfBirth: "2021-07-22",
-    sex: "Male",
-  },
-  {
-    name: "Olivia",
-    dateOfBirth: "2023-01-10",
-    sex: "Female",
-  },
-  {
-    name: "Liam",
-    dateOfBirth: "2022-11-05",
-    sex: "Male",
-  },
-]
+// Sleep quality options
+const sleepQualities = ["poor", "fair", "good", "excellent"] as const
 
-// Event type distributions
-const FEEDING_TYPES = ["breast", "formula", "solid", "other"]
-const DIAPER_TYPES = ["wet", "dirty", "both"]
-const SLEEP_QUALITY = ["good", "fair", "poor"]
-const MEDICATION_TYPES = ["acetaminophen", "ibuprofen", "antibiotic", "antihistamine", "vitamin"]
+// Sleep locations
+const sleepLocations = ["crib", "bassinet", "parent's bed", "stroller", "car seat"] as const
 
-// Helper function to generate a random number between min and max
-function randomBetween(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1) + min)
-}
-
-// Helper function to generate a random date between start and end
-function randomDate(start: Date, end: Date): Date {
-  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))
-}
-
-// Helper function to generate a random item from an array
-function randomItem<T>(array: T[]): T {
+// Helper function to get random item from array
+function getRandomItem<T>(array: readonly T[]): T {
   return array[Math.floor(Math.random() * array.length)]
 }
 
-// Generate feeding events for a child
-async function generateFeedingEvents(childId: string, parentId: string, startDate: Date, endDate: Date, db: any) {
-  const events = []
+// Helper function to get random integer between min and max (inclusive)
+function getRandomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+// Helper function to get random float between min and max with precision
+function getRandomFloat(min: number, max: number, precision = 2): number {
+  const value = Math.random() * (max - min) + min
+  return Number(value.toFixed(precision))
+}
+
+// Helper function to generate random date within range
+function getRandomDate(start: Date, end: Date): Date {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))
+}
+
+// Helper function to add minutes to date
+function addMinutes(date: Date, minutes: number): Date {
+  return new Date(date.getTime() + minutes * 60000)
+}
+
+// Helper function to create weighted random selection
+function weightedRandom<T>(items: T[], weights: number[]): T {
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0)
+  let random = Math.random() * totalWeight
+
+  for (let i = 0; i < items.length; i++) {
+    if (random < weights[i]) {
+      return items[i]
+    }
+    random -= weights[i]
+  }
+
+  return items[items.length - 1]
+}
+
+// Generate sleep entries for a child
+async function generateSleepEntriesForChild(childId: string, startDate: Date, endDate: Date, count: number) {
+  console.log(`Generating ${count} sleep entries for child ${childId}...`)
+
+  // Connect to database
+  const { db } = await connectToDatabase()
+
+  // Get child's info to adjust sleep patterns
+  const child = await db.collection("children").findOne({ _id: childId })
+
+  if (!child) {
+    throw new Error(`Child with ID ${childId} not found`)
+  }
+
+  const childBirthDate = new Date(child.birthDate)
+  const childAgeMonths = Math.floor((endDate.getTime() - childBirthDate.getTime()) / (1000 * 60 * 60 * 24 * 30))
+
+  // Create a more realistic sleep schedule based on age
+  const sleepSchedule = createAgeAppropriateSchedule(childAgeMonths)
+
+  // Calculate how many days we're generating data for
+  const daysDifference = differenceInDays(endDate, startDate) + 1
+
+  // Calculate entries per day (with some randomness)
+  const entriesPerDay = Math.max(1, Math.min(count / daysDifference, sleepSchedule.napsPerDay + 1))
+
+  const sleepEntries = []
   let currentDate = new Date(startDate)
 
-  while (currentDate <= endDate) {
-    // Generate 4-8 feeding events per day
-    const feedingsPerDay = randomBetween(4, 8)
+  // Generate entries day by day for more realistic patterns
+  while (currentDate <= endDate && sleepEntries.length < count) {
+    // Determine how many sleep sessions for this day (night sleep + naps)
+    const sessionsToday = Math.round(getRandomFloat(entriesPerDay * 0.7, entriesPerDay * 1.3, 0))
 
-    for (let i = 0; i < feedingsPerDay; i++) {
-      const feedingType = randomItem(FEEDING_TYPES)
-      const feedingTime = new Date(currentDate)
-      feedingTime.setHours(randomBetween(0, 23), randomBetween(0, 59))
+    // Always include night sleep if possible
+    if (sessionsToday > 0) {
+      // Night sleep (starts previous evening, ends this morning)
+      const nightStart = new Date(currentDate)
+      nightStart.setHours(sleepSchedule.nightSleepStart.hour, getRandomInt(0, 59), 0, 0)
 
-      const endTime = new Date(feedingTime)
-      endTime.setMinutes(endTime.getMinutes() + randomBetween(10, 30))
+      // If this is not the first day, adjust to previous day
+      if (currentDate > startDate) {
+        nightStart.setDate(nightStart.getDate() - 1)
+      }
 
-      const amount = feedingType === "breast" ? null : randomBetween(2, 8)
+      const nightDuration = getRandomInt(sleepSchedule.nightSleepDuration.min, sleepSchedule.nightSleepDuration.max)
 
-      const details = `Type: ${feedingType}${amount ? `\nAmount: ${amount}` : ""}\nNotes: Regular feeding`
+      const nightEnd = addMinutes(nightStart, nightDuration)
 
-      const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-      const now = new Date().toISOString()
+      // Quality tends to be better for night sleep
+      const qualityWeights = [0.1, 0.2, 0.4, 0.3] // poor, fair, good, excellent
+      const quality = sleepQualities[weightedRandom([0, 1, 2, 3], qualityWeights)]
 
-      events.push({
-        id: eventId,
+      // Location is almost always crib/bassinet for night sleep
+      const location = Math.random() > 0.9 ? "parent's bed" : getRandomItem(["crib", "bassinet"])
+
+      // Generate notes sometimes
+      const notes = generateSleepNotes(quality, nightDuration, false)
+
+      // Format for MongoDB events collection
+      sleepEntries.push({
+        _id: uuidv4(),
         childId,
-        parentId,
-        eventType: "feeding",
-        startTime: feedingTime.toISOString(),
-        endTime: endTime.toISOString(),
-        details,
-        value: amount,
-        timestamp: feedingTime.toISOString(),
-        createdAt: now,
-        updatedAt: now,
+        eventType: "sleeping",
+        timestamp: nightStart.toISOString(),
+        startTime: nightStart.toISOString(),
+        endTime: nightEnd.toISOString(),
+        duration: nightDuration / 60, // Convert to hours for consistency with your app
+        details: formatSleepDetails(quality, nightDuration, location, notes),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+    }
+
+    // Add naps if we have sessions left for today
+    const napCount = Math.min(sessionsToday - 1, sleepSchedule.napsPerDay)
+
+    for (let i = 0; i < napCount; i++) {
+      // Space naps throughout the day
+      const napTimeSlot = sleepSchedule.napTimeSlots[i % sleepSchedule.napTimeSlots.length]
+
+      const napStart = new Date(currentDate)
+      napStart.setHours(napTimeSlot.hour, getRandomInt(napTimeSlot.minuteMin, napTimeSlot.minuteMax), 0, 0)
+
+      const napDuration = getRandomInt(sleepSchedule.napDuration.min, sleepSchedule.napDuration.max)
+
+      const napEnd = addMinutes(napStart, napDuration)
+
+      // Nap quality distribution
+      const qualityWeights = [0.15, 0.25, 0.4, 0.2] // poor, fair, good, excellent
+      const quality = sleepQualities[weightedRandom([0, 1, 2, 3], qualityWeights)]
+
+      // Naps happen in various locations
+      const locationWeights = [0.4, 0.2, 0.15, 0.15, 0.1] // crib, bassinet, parent's bed, stroller, car seat
+      const locationIndex = weightedRandom([0, 1, 2, 3, 4], locationWeights)
+      const location = sleepLocations[locationIndex]
+
+      // Generate notes sometimes
+      const notes = generateSleepNotes(quality, napDuration, true)
+
+      // Format for MongoDB events collection
+      sleepEntries.push({
+        _id: uuidv4(),
+        childId,
+        eventType: "sleeping",
+        timestamp: napStart.toISOString(),
+        startTime: napStart.toISOString(),
+        endTime: napEnd.toISOString(),
+        duration: napDuration / 60, // Convert to hours for consistency with your app
+        details: formatSleepDetails(quality, napDuration, location, notes),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
     }
 
     // Move to next day
     currentDate = addDays(currentDate, 1)
+
+    // If we've generated enough entries, break
+    if (sleepEntries.length >= count) {
+      break
+    }
   }
 
-  if (events.length > 0) {
-    await db.collection("events").insertMany(events)
-    console.log(`Added ${events.length} feeding events for child ${childId}`)
+  // Sort by start time
+  sleepEntries.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+  // Limit to requested count
+  const finalEntries = sleepEntries.slice(0, count)
+
+  // Create entries in database
+  if (finalEntries.length > 0) {
+    await db.collection("events").insertMany(finalEntries)
+  }
+
+  console.log(`Created ${finalEntries.length} sleep entries for child ${childId}`)
+  return finalEntries.length
+}
+
+// Format sleep details to match your app's expected format
+function formatSleepDetails(quality: string, durationMinutes: number, location: string, notes?: string): string {
+  const durationHours = (durationMinutes / 60).toFixed(1)
+
+  let details = `Quality: ${quality}\nDuration: ${durationHours}\nLocation: ${location}`
+
+  if (notes) {
+    details += `\nNotes: ${notes}`
+  }
+
+  return details
+}
+
+// Create age-appropriate sleep schedule
+function createAgeAppropriateSchedule(ageMonths: number) {
+  if (ageMonths <= 3) {
+    // 0-3 months: Many naps, shorter night sleep
+    return {
+      napsPerDay: 4,
+      napTimeSlots: [
+        { hour: 9, minuteMin: 0, minuteMax: 30 },
+        { hour: 12, minuteMin: 0, minuteMax: 30 },
+        { hour: 15, minuteMin: 0, minuteMax: 30 },
+        { hour: 18, minuteMin: 0, minuteMax: 30 },
+      ],
+      napDuration: { min: 30, max: 120 },
+      nightSleepStart: { hour: 20, minute: 0 },
+      nightSleepDuration: { min: 360, max: 480 }, // 6-8 hours
+    }
+  } else if (ageMonths <= 6) {
+    // 3-6 months: 3-4 naps, longer night sleep
+    return {
+      napsPerDay: 3,
+      napTimeSlots: [
+        { hour: 9, minuteMin: 0, minuteMax: 30 },
+        { hour: 12, minuteMin: 30, minuteMax: 45 },
+        { hour: 15, minuteMin: 30, minuteMax: 45 },
+      ],
+      napDuration: { min: 45, max: 120 },
+      nightSleepStart: { hour: 19, minute: 30 },
+      nightSleepDuration: { min: 480, max: 600 }, // 8-10 hours
+    }
+  } else if (ageMonths <= 12) {
+    // 6-12 months: 2-3 naps, consistent night sleep
+    return {
+      napsPerDay: 2,
+      napTimeSlots: [
+        { hour: 9, minuteMin: 30, minuteMax: 45 },
+        { hour: 13, minuteMin: 0, minuteMax: 30 },
+        { hour: 16, minuteMin: 0, minuteMax: 30 },
+      ],
+      napDuration: { min: 60, max: 120 },
+      nightSleepStart: { hour: 19, minute: 0 },
+      nightSleepDuration: { min: 540, max: 660 }, // 9-11 hours
+    }
+  } else if (ageMonths <= 18) {
+    // 12-18 months: 1-2 naps, longer night sleep
+    return {
+      napsPerDay: 2,
+      napTimeSlots: [
+        { hour: 10, minuteMin: 0, minuteMax: 30 },
+        { hour: 14, minuteMin: 0, minuteMax: 30 },
+      ],
+      napDuration: { min: 60, max: 150 },
+      nightSleepStart: { hour: 19, minute: 0 },
+      nightSleepDuration: { min: 600, max: 720 }, // 10-12 hours
+    }
+  } else if (ageMonths <= 36) {
+    // 18-36 months: 1 nap, consistent night sleep
+    return {
+      napsPerDay: 1,
+      napTimeSlots: [{ hour: 13, minuteMin: 0, minuteMax: 30 }],
+      napDuration: { min: 90, max: 180 },
+      nightSleepStart: { hour: 19, minute: 30 },
+      nightSleepDuration: { min: 600, max: 720 }, // 10-12 hours
+    }
+  } else {
+    // 3+ years: Occasional nap, consistent night sleep
+    return {
+      napsPerDay: Math.random() > 0.5 ? 1 : 0,
+      napTimeSlots: [{ hour: 13, minuteMin: 30, minuteMax: 45 }],
+      napDuration: { min: 60, max: 120 },
+      nightSleepStart: { hour: 20, minute: 0 },
+      nightSleepDuration: { min: 600, max: 660 }, // 10-11 hours
+    }
   }
 }
 
-// Generate sleep events for a child
-async function generateSleepEvents(childId: string, parentId: string, startDate: Date, endDate: Date, db: any) {
-  const events = []
-  let currentDate = new Date(startDate)
+// Generate realistic sleep notes
+function generateSleepNotes(quality: string, durationMinutes: number, isNap: boolean): string | undefined {
+  // Only generate notes sometimes
+  if (Math.random() > 0.7) {
+    return undefined
+  }
 
-  while (currentDate <= endDate) {
-    // Generate 2-4 sleep events per day
-    const sleepsPerDay = randomBetween(2, 4)
+  const noteTemplates = {
+    poor: [
+      "Woke up crying multiple times",
+      "Had trouble falling asleep",
+      "Woke up early and couldn't go back to sleep",
+      "Very restless sleep",
+      "Seemed uncomfortable",
+      "Needed lots of soothing",
+    ],
+    fair: [
+      "Woke up once for feeding",
+      "Took a while to settle",
+      "Woke up briefly but self-soothed",
+      "Slightly restless",
+      "Needed some rocking to fall asleep",
+    ],
+    good: [
+      "Slept well with minimal waking",
+      "Fell asleep quickly",
+      "Woke up happy",
+      "Good solid sleep",
+      "Used white noise machine",
+    ],
+    excellent: [
+      "Slept peacefully through the night",
+      "Perfect sleep session",
+      "Slept soundly",
+      "Woke up very happy and refreshed",
+      "Fell asleep independently",
+    ],
+  }
 
-    for (let i = 0; i < sleepsPerDay; i++) {
-      const sleepQuality = randomItem(SLEEP_QUALITY)
-      const sleepTime = new Date(currentDate)
+  // Select base note based on quality
+  const baseNote = getRandomItem(noteTemplates[quality as keyof typeof noteTemplates])
 
-      // Distribute sleep throughout the day
-      if (i === 0) {
-        // Night sleep (continues from previous day)
-        sleepTime.setHours(0, 0)
-        const endTime = new Date(sleepTime)
-        endTime.setHours(randomBetween(6, 8), randomBetween(0, 59))
+  // Add context sometimes
+  if (Math.random() > 0.5) {
+    const contextTemplates = [
+      isNap ? "After active playtime." : "After bath time routine.",
+      "Room was slightly cooler than usual.",
+      "Used sleep sack.",
+      "Had white noise on.",
+      isNap ? "In a quiet room." : "With night light on.",
+      "Seemed tired earlier than usual.",
+    ]
 
-        const details = `Quality: ${sleepQuality}\nNotes: Night sleep`
-
-        const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-        const now = new Date().toISOString()
-
-        events.push({
-          id: eventId,
-          childId,
-          parentId,
-          eventType: "sleeping",
-          startTime: sleepTime.toISOString(),
-          endTime: endTime.toISOString(),
-          details,
-          timestamp: sleepTime.toISOString(),
-          createdAt: now,
-          updatedAt: now,
-        })
-      } else if (i === sleepsPerDay - 1) {
-        // Night sleep (continues to next day)
-        sleepTime.setHours(randomBetween(19, 21), randomBetween(0, 59))
-        const endTime = new Date(sleepTime)
-        endTime.setDate(endTime.getDate() + 1)
-        endTime.setHours(randomBetween(6, 8), randomBetween(0, 59))
-
-        const details = `Quality: ${sleepQuality}\nNotes: Night sleep`
-
-        const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-        const now = new Date().toISOString()
-
-        events.push({
-          id: eventId,
-          childId,
-          parentId,
-          eventType: "sleeping",
-          startTime: sleepTime.toISOString(),
-          endTime: endTime.toISOString(),
-          details,
-          timestamp: sleepTime.toISOString(),
-          createdAt: now,
-          updatedAt: now,
-        })
-      } else {
-        // Nap during the day
-        sleepTime.setHours(randomBetween(9, 18), randomBetween(0, 59))
-        const endTime = new Date(sleepTime)
-        endTime.setMinutes(endTime.getMinutes() + randomBetween(30, 120))
-
-        const details = `Quality: ${sleepQuality}\nNotes: Daytime nap`
-
-        const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-        const now = new Date().toISOString()
-
-        events.push({
-          id: eventId,
-          childId,
-          parentId,
-          eventType: "sleeping",
-          startTime: sleepTime.toISOString(),
-          endTime: endTime.toISOString(),
-          details,
-          timestamp: sleepTime.toISOString(),
-          createdAt: now,
-          updatedAt: now,
-        })
-      }
+    // Add quality-specific context
+    if (quality === "poor" || quality === "fair") {
+      contextTemplates.push(
+        "Might be teething.",
+        "May have had a bad dream.",
+        "Was overtired.",
+        "Had a busy day.",
+        "Might be coming down with something.",
+      )
     }
 
-    // Move to next day
-    currentDate = addDays(currentDate, 1)
+    return `${baseNote} ${getRandomItem(contextTemplates)}`
   }
 
-  if (events.length > 0) {
-    await db.collection("events").insertMany(events)
-    console.log(`Added ${events.length} sleep events for child ${childId}`)
-  }
+  return baseNote
 }
 
-// Generate diaper events for a child
-async function generateDiaperEvents(childId: string, parentId: string, startDate: Date, endDate: Date, db: any) {
-  const events = []
-  let currentDate = new Date(startDate)
-
-  while (currentDate <= endDate) {
-    // Generate 6-10 diaper events per day
-    const diapersPerDay = randomBetween(6, 10)
-
-    for (let i = 0; i < diapersPerDay; i++) {
-      const diaperType = randomItem(DIAPER_TYPES)
-      const diaperTime = new Date(currentDate)
-      diaperTime.setHours(randomBetween(0, 23), randomBetween(0, 59))
-
-      const details = `Type: ${diaperType}\nNotes: Regular diaper change`
-
-      const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-      const now = new Date().toISOString()
-
-      events.push({
-        id: eventId,
-        childId,
-        parentId,
-        eventType: "diaper",
-        startTime: diaperTime.toISOString(),
-        endTime: diaperTime.toISOString(),
-        details,
-        timestamp: diaperTime.toISOString(),
-        createdAt: now,
-        updatedAt: now,
-      })
-    }
-
-    // Move to next day
-    currentDate = addDays(currentDate, 1)
-  }
-
-  if (events.length > 0) {
-    await db.collection("events").insertMany(events)
-    console.log(`Added ${events.length} diaper events for child ${childId}`)
-  }
-}
-
-// Generate growth events for a child
-async function generateGrowthEvents(
-  childId: string,
-  parentId: string,
-  startDate: Date,
-  endDate: Date,
-  childDob: string,
-  db: any,
-) {
-  const events = []
-  let currentDate = new Date(startDate)
-
-  // Calculate age in months at start date
-  const dobDate = new Date(childDob)
-  const ageInMonthsAtStart =
-    (startDate.getFullYear() - dobDate.getFullYear()) * 12 + (startDate.getMonth() - dobDate.getMonth())
-
-  // Generate monthly growth records
-  while (currentDate <= endDate) {
-    const growthTime = new Date(currentDate)
-    growthTime.setDate(randomBetween(1, 28)) // Random day of the month
-    growthTime.setHours(randomBetween(8, 20), randomBetween(0, 59))
-
-    // Calculate expected weight and height based on age
-    // These are simplified calculations and not medically accurate
-    const ageInMonths =
-      ageInMonthsAtStart +
-      ((currentDate.getFullYear() - startDate.getFullYear()) * 12 + (currentDate.getMonth() - startDate.getMonth()))
-
-    // Weight in kg: starts around 3.5kg and increases
-    const baseWeight = 3.5
-    const weightGain = ageInMonths < 6 ? 0.7 : ageInMonths < 12 ? 0.5 : 0.3
-    const weight = baseWeight + ageInMonths * weightGain + (Math.random() * 0.5 - 0.25)
-
-    // Height in cm: starts around 50cm and increases
-    const baseHeight = 50
-    const heightGain = ageInMonths < 6 ? 2.5 : ageInMonths < 12 ? 1.5 : 1.0
-    const height = baseHeight + ageInMonths * heightGain + (Math.random() * 2 - 1)
-
-    const details = `Weight: ${weight.toFixed(2)}\nHeight: ${height.toFixed(1)}\nNotes: Monthly checkup`
-
-    const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-    const now = new Date().toISOString()
-
-    events.push({
-      id: eventId,
-      childId,
-      parentId,
-      eventType: "growth",
-      startTime: growthTime.toISOString(),
-      endTime: growthTime.toISOString(),
-      details,
-      value: weight,
-      timestamp: growthTime.toISOString(),
-      createdAt: now,
-      updatedAt: now,
-    })
-
-    // Move to next month
-    currentDate = addDays(currentDate, 30)
-  }
-
-  if (events.length > 0) {
-    await db.collection("events").insertMany(events)
-    console.log(`Added ${events.length} growth events for child ${childId}`)
-  }
-}
-
-// Generate medication events for a child
-async function generateMedicationEvents(childId: string, parentId: string, startDate: Date, endDate: Date, db: any) {
-  const events = []
-  let currentDate = new Date(startDate)
-
-  // Generate random medication events (less frequent)
-  while (currentDate <= endDate) {
-    // 20% chance of medication on any given day
-    if (Math.random() < 0.2) {
-      const medicationsPerDay = randomBetween(1, 3)
-
-      for (let i = 0; i < medicationsPerDay; i++) {
-        const medicationType = randomItem(MEDICATION_TYPES)
-        const medicationTime = new Date(currentDate)
-        medicationTime.setHours(randomBetween(8, 20), randomBetween(0, 59))
-
-        // Dosage depends on medication type
-        let dosage = 0
-        if (medicationType === "acetaminophen" || medicationType === "ibuprofen") {
-          dosage = randomBetween(2, 5) * 2.5 // 5-12.5 ml
-        } else if (medicationType === "antibiotic") {
-          dosage = randomBetween(1, 3) * 5 // 5-15 ml
-        } else {
-          dosage = randomBetween(1, 2) // 1-2 ml or tablets
-        }
-
-        const details = `Medication: ${medicationType}\nDosage: ${dosage}\nFrequency: once\nInstructions: As needed for symptoms`
-
-        const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-        const now = new Date().toISOString()
-
-        events.push({
-          id: eventId,
-          childId,
-          parentId,
-          eventType: "medication",
-          startTime: medicationTime.toISOString(),
-          endTime: medicationTime.toISOString(),
-          details,
-          value: dosage,
-          timestamp: medicationTime.toISOString(),
-          createdAt: now,
-          updatedAt: now,
-        })
-      }
-    }
-
-    // Move to next day
-    currentDate = addDays(currentDate, 1)
-  }
-
-  if (events.length > 0) {
-    await db.collection("events").insertMany(events)
-    console.log(`Added ${events.length} medication events for child ${childId}`)
-  }
-}
-
-// Generate temperature events for a child
-async function generateTemperatureEvents(childId: string, parentId: string, startDate: Date, endDate: Date, db: any) {
-  const events = []
-  let currentDate = new Date(startDate)
-
-  // Generate temperature events (weekly routine + when sick)
-  while (currentDate <= endDate) {
-    // Weekly routine check (every 7 days)
-    if (currentDate.getDay() === 0) {
-      // Sunday
-      const tempTime = new Date(currentDate)
-      tempTime.setHours(randomBetween(8, 20), randomBetween(0, 59))
-
-      // Normal temperature with slight variation
-      const temp = 36.5 + (Math.random() * 0.6 - 0.3)
-
-      const details = `Temperature: ${temp.toFixed(1)}\nUnit: celsius\nNotes: Routine check`
-
-      const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-      const now = new Date().toISOString()
-
-      events.push({
-        id: eventId,
-        childId,
-        parentId,
-        eventType: "temperature",
-        startTime: tempTime.toISOString(),
-        endTime: tempTime.toISOString(),
-        details,
-        value: temp,
-        timestamp: tempTime.toISOString(),
-        createdAt: now,
-        updatedAt: now,
-      })
-    }
-
-    // Occasional fever (5% chance on any day)
-    if (Math.random() < 0.05) {
-      // Generate 2-4 temperature readings for the fever
-      const readingsCount = randomBetween(2, 4)
-
-      for (let i = 0; i < readingsCount; i++) {
-        const tempTime = new Date(currentDate)
-        tempTime.setHours(randomBetween(8, 20), randomBetween(0, 59))
-
-        // Fever temperature
-        const temp = 37.8 + Math.random() * 1.2
-
-        const details = `Temperature: ${temp.toFixed(1)}\nUnit: celsius\nNotes: Fever check`
-
-        const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-        const now = new Date().toISOString()
-
-        events.push({
-          id: eventId,
-          childId,
-          parentId,
-          eventType: "temperature",
-          startTime: tempTime.toISOString(),
-          endTime: tempTime.toISOString(),
-          details,
-          value: temp,
-          timestamp: tempTime.toISOString(),
-          createdAt: now,
-          updatedAt: now,
-        })
-      }
-    }
-
-    // Move to next day
-    currentDate = addDays(currentDate, 1)
-  }
-
-  if (events.length > 0) {
-    await db.collection("events").insertMany(events)
-    console.log(`Added ${events.length} temperature events for child ${childId}`)
-  }
-}
-
-// Main seeding function
-export async function seedDatabase() {
+// Main seed function
+export async function seedSleepData(childId: string): Promise<number> {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      throw new Error("Unauthorized")
-    }
+    console.log("Starting sleep data seeding...")
 
+    // Connect to database
     const { db } = await connectToDatabase()
 
-    // Clear existing data for this user
-    await db.collection("children").deleteMany({ parentId: `user_${userId}` })
+    // Check if the child exists
+    const child = await db.collection("children").findOne({ _id: childId })
 
-    // Add children
-    const childrenData = []
-    for (const child of CHILDREN) {
-      const now = new Date().toISOString()
-      const childId = `child_${Math.random().toString(36).substr(2, 9)}`
-
-      childrenData.push({
-        id: childId,
-        parentId: `user_${userId}`,
-        name: child.name,
-        dateOfBirth: child.dateOfBirth,
-        sex: child.sex,
-        photoUrl: null,
-        createdAt: now,
-        updatedAt: now,
-      })
+    if (!child) {
+      throw new Error("Child not found")
     }
 
-    const result = await db.collection("children").insertMany(childrenData)
-    console.log(`Added ${childrenData.length} children`)
-
-    // Delete existing events for these children
-    const childIds = childrenData.map((child) => child.id)
-    await db.collection("events").deleteMany({ childId: { $in: childIds } })
-
-    // Generate a year of data for each child
+    // Define date range for seed data (last 3 months)
     const endDate = new Date()
-    const startDate = subMonths(endDate, 12) // 1 year of data
+    const startDate = subMonths(endDate, 3)
 
-    for (let i = 0; i < childrenData.length; i++) {
-      const child = childrenData[i]
+    // Number of entries depends on child's age
+    // Younger children have more frequent sleep entries
+    const childAgeMonths = child.birthDate
+      ? Math.floor((new Date().getTime() - new Date(child.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 30))
+      : 12 // Default to 12 months if birthdate not available
 
-      // Generate events for each child
-      await generateFeedingEvents(child.id, `user_${userId}`, startDate, endDate, db)
-      await generateSleepEvents(child.id, `user_${userId}`, startDate, endDate, db)
-      await generateDiaperEvents(child.id, `user_${userId}`, startDate, endDate, db)
-      await generateGrowthEvents(child.id, `user_${userId}`, startDate, endDate, CHILDREN[i].dateOfBirth, db)
-      await generateMedicationEvents(child.id, `user_${userId}`, startDate, endDate, db)
-      await generateTemperatureEvents(child.id, `user_${userId}`, startDate, endDate, db)
+    let entriesCount
+
+    if (childAgeMonths <= 3) {
+      // Newborns: 4-5 naps + night sleep per day
+      entriesCount = 90 * 5 // ~450 entries over 3 months
+    } else if (childAgeMonths <= 6) {
+      // 3-6 months: 3-4 naps + night sleep per day
+      entriesCount = 90 * 4 // ~360 entries over 3 months
+    } else if (childAgeMonths <= 12) {
+      // 6-12 months: 2-3 naps + night sleep per day
+      entriesCount = 90 * 3 // ~270 entries over 3 months
+    } else if (childAgeMonths <= 24) {
+      // 1-2 years: 1-2 naps + night sleep per day
+      entriesCount = 90 * 2 // ~180 entries over 3 months
+    } else {
+      // 2+ years: 0-1 nap + night sleep per day
+      entriesCount = 90 * 1.5 // ~135 entries over 3 months
     }
 
-    return { success: true, message: "Database seeded successfully" }
+    // For testing purposes, limit the number of entries
+    const count = Math.min(Math.round(entriesCount), 150)
+
+    // First, clear existing sleep data for this child to avoid duplicates
+    await db.collection("events").deleteMany({
+      childId,
+      eventType: "sleeping",
+    })
+
+    return await generateSleepEntriesForChild(childId, startDate, endDate, count)
   } catch (error) {
+    console.error("Error seeding sleep data:", error)
+    throw error
+  }
+}
+
+// Create sample children with different ages
+async function createSampleChildren(userId: string) {
+  const { db } = await connectToDatabase()
+
+  // Clear existing children for this user
+  await db.collection("children").deleteMany({ userId })
+
+  // Create 4 children with different ages
+  const today = new Date()
+
+  const children = [
+    {
+      _id: uuidv4(),
+      name: "Baby Emma",
+      birthDate: subMonths(today, 3), // 3 months old
+      gender: "female",
+      userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      _id: uuidv4(),
+      name: "Toddler Noah",
+      birthDate: subMonths(today, 18), // 18 months old
+      gender: "male",
+      userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      _id: uuidv4(),
+      name: "Preschooler Sophia",
+      birthDate: subMonths(today, 36), // 3 years old
+      gender: "female",
+      userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      _id: uuidv4(),
+      name: "School-age Liam",
+      birthDate: subMonths(today, 60), // 5 years old
+      gender: "male",
+      userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ]
+
+  await db.collection("children").insertMany(children)
+  console.log(`Created ${children.length} sample children`)
+
+  return children
+}
+
+// Main database seeding function that your client component is trying to import
+export async function seedDatabase() {
+  try {
+    console.log("Starting database seeding process...")
+
+    // Get the current user
+    const { db } = await connectToDatabase()
+
+    // Get the current user or create one if none exists
+
+    // Try to find a user
+    let user = await db.collection("users").findOne({})
+
+    // If no user exists, create a sample user
+    if (!user) {
+      console.log("No user found, creating a sample user...")
+      const sampleUser = {
+        _id: uuidv4(),
+        name: "Sample User",
+        email: "sample@example.com",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      await db.collection("users").insertOne(sampleUser)
+      user = sampleUser
+      console.log("Created sample user:", user._id)
+    }
+
+    // Clear existing events
+    await db.collection("events").deleteMany({ userId: user._id })
+
+    // Create sample children
+    const children = await createSampleChildren(user._id)
+
+    // Generate sleep data for each child
+    let totalEntries = 0
+    for (const child of children) {
+      const sleepEntries = await seedSleepData(child._id)
+      totalEntries += sleepEntries
+    }
+
+    console.log(`Database seeding completed successfully with ${totalEntries} total entries`)
+
+    return {
+      success: true,
+      message: `Database seeded successfully with ${children.length} children and ${totalEntries} events`,
+    }
+  } catch (error: any) {
     console.error("Error seeding database:", error)
-    return { success: false, error: error.message }
+    return {
+      success: false,
+      error: error.message || "An unknown error occurred while seeding the database",
+    }
   }
 }
 

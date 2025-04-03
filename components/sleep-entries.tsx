@@ -12,60 +12,25 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal } from "lucide-react"
 import { SleepForm } from "@/components/forms/sleep-form"
+import { useEffect, useState } from "react"
 
 export function SleepEntries() {
-  const entries = [
-    {
-      id: 1,
-      child: "Michael",
-      type: "Night",
-      startTime: "March 2, 2025 - 8:00 PM",
-      endTime: "March 3, 2025 - 6:30 AM",
-      duration: "10h 30m",
-      quality: "Good",
-      avatar: "/placeholder.svg",
-    },
-    {
-      id: 2,
-      child: "Michael",
-      type: "Nap",
-      startTime: "March 2, 2025 - 1:15 PM",
-      endTime: "March 2, 2025 - 2:45 PM",
-      duration: "1h 30m",
-      quality: "Excellent",
-      avatar: "/placeholder.svg",
-    },
-    {
-      id: 3,
-      child: "Emma",
-      type: "Nap",
-      startTime: "March 2, 2025 - 10:00 AM",
-      endTime: "March 2, 2025 - 11:15 AM",
-      duration: "1h 15m",
-      quality: "Fair",
-      avatar: "/placeholder.svg",
-    },
-    {
-      id: 4,
-      child: "Michael",
-      type: "Night",
-      startTime: "March 1, 2025 - 7:30 PM",
-      endTime: "March 2, 2025 - 6:00 AM",
-      duration: "10h 30m",
-      quality: "Good",
-      avatar: "/placeholder.svg",
-    },
-    {
-      id: 5,
-      child: "Emma",
-      type: "Nap",
-      startTime: "March 1, 2025 - 1:00 PM",
-      endTime: "March 1, 2025 - 3:00 PM",
-      duration: "2h 00m",
-      quality: "Good",
-      avatar: "/placeholder.svg",
-    },
-  ]
+
+  const [entries, setEntries] = useState([])
+
+  useEffect(() => {
+    // Fetch sleep entries from the API or state management
+    // This is just a placeholder for your actual data fetching logic
+    const fetchSleepEntries = async () => {
+      // Replace with your actual API call
+      const response = await fetch("/api/sleep-entries")
+      const data = await response.json()
+      setEntries(data)
+    }
+
+    fetchSleepEntries()
+  })
+
 
   return (
     <Card>

@@ -1,289 +1,244 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { format } from "date-fns"
-import { Clock } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/components/ui/use-toast"
-import { useChildContext } from "@/contexts/child-context"
-import { addEvent } from "@/app/actions"
-import { Switch } from "@/components/ui/switch"
-import { DatePicker } from "@/components/ui/date-picker"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { format } from "date-fns"
+import { CalendarIcon, X } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import { DialogFooter } from "@/components/ui/dialog"
 
-const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Medication name is required.",
-  }),
-  dosage: z.string().min(1, {
-    message: "Dosage is required.",
-  }),
-  date: z.date({
-    required_error: "Date is required.",
-  }),
-  time: z.string().min(1, {
-    message: "Time is required.",
-  }),
-  frequency: z.enum(["once", "daily", "twice-daily", "three-times-daily", "as-needed"]),
-  instructions: z.string().optional(),
-  isRecurring: z.boolean().default(false),
-  endDate: z.date().optional(),
-})
+interface MedicationFormProps {
+  medication?: any
+  onSubmit: (data: any) => void
+  
+}
 
-export function MedicationForm({ onSuccess }: { onSuccess?: () => void }) {
-  const { toast } = useToast()
-  const { selectedChild } = useChildContext()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      dosage: "",
-      date: new Date(),
-      time: format(new Date(), "HH:mm"),
-      frequency: "once",
-      instructions: "",
-      isRecurring: false,
-    },
+export function MedicationForm({ medication, onSubmit }: MedicationFormProps) {
+  const [formData, setFormData] = useState({
+    medicationName: medication?.medicationName || "",
+    dosage: medication?.dosage || "",
+    frequency: medication?.frequency || "",
+    startDate: medication?.startDate || new Date(),
+    endDate: medication?.endDate || undefined,
+    timeOfDay: medication?.timeOfDay || [],
+    instructions: medication?.instructions || "",
+    status: medication?.status || "active",
+    notes: medication?.notes || "",
   })
 
-  const isRecurring = form.watch("isRecurring")
+  const [timeOfDayInput, setTimeOfDayInput] = useState("")
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!selectedChild) {
-      toast({
-        title: "Error",
-        description: "Please select a child first.",
-        variant: "destructive",
-      })
-      return
-    }
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
-    try {
-      setIsSubmitting(true)
-      console.log("Submitting medication data:", values)
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
-      // Format date and time
-      const date = values.date
-      const time = values.time
-      const [hours, minutes] = time.split(":").map(Number)
-      const startTime = new Date(date)
-      startTime.setHours(hours, minutes)
+  const handleDateChange = (name: string, date: Date | undefined) => {
+    setFormData((prev) => ({ ...prev, [name]: date }))
+  }
 
-      const details = `Medication: ${values.name}
-Dosage: ${values.dosage}
-Frequency: ${values.frequency}
-${values.instructions ? `Instructions: ${values.instructions}` : ""}`
-
-      // Try to parse the dosage as a number if possible
-      let dosageValue = 0
-      const numericDosage = Number.parseFloat(values.dosage)
-      if (!isNaN(numericDosage)) {
-        dosageValue = numericDosage
-      }
-
-      const result = await addEvent({
-        childId: selectedChild.id,
-        eventType: "medication",
-        startTime: startTime.toISOString(),
-        endTime: startTime.toISOString(),
-        details: details,
-        value: dosageValue,
-      })
-
-      if (result.success) {
-        toast({
-          title: "Medication added",
-          description: `${values.name} has been added for ${selectedChild.name}.`,
-        })
-
-        // Reset form
-        form.reset({
-          name: "",
-          dosage: "",
-          date: new Date(),
-          time: format(new Date(), "HH:mm"),
-          frequency: "once",
-          instructions: "",
-          isRecurring: false,
-        })
-
-        // Call onSuccess callback if provided
-        if (onSuccess) {
-          onSuccess()
-        }
-      } else {
-        throw new Error(result.error || "Failed to add medication")
-      }
-    } catch (error) {
-      console.error("Error adding medication:", error)
-      toast({
-        title: "Error",
-        description: "Failed to add medication. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
+  const addTimeOfDay = () => {
+    if (timeOfDayInput.trim() && !formData.timeOfDay.includes(timeOfDayInput.trim())) {
+      setFormData((prev) => ({
+        ...prev,
+        timeOfDay: [...prev.timeOfDay, timeOfDayInput.trim()],
+      }))
+      setTimeOfDayInput("")
     }
   }
 
+  const removeTimeOfDay = (time: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      timeOfDay: prev.timeOfDay.filter((t) => t !== time),
+    }))
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit(formData)
+  }
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Medication Name</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter medication name" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <form onSubmit={handleSubmit}>
+      <div className="grid gap-4 py-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="medicationName">Medication Name</Label>
+            <Input
+              id="medicationName"
+              name="medicationName"
+              value={formData.medicationName}
+              onChange={handleChange}
+              placeholder="e.g., Amoxicillin"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="dosage">Dosage</Label>
+            <Input
+              id="dosage"
+              name="dosage"
+              value={formData.dosage}
+              onChange={handleChange}
+              placeholder="e.g., 250mg"
+              required
+            />
+          </div>
+        </div>
 
-        <FormField
-          control={form.control}
-          name="dosage"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Dosage</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., 5ml, 10mg" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex gap-4">
-          <FormField
-            control={form.control}
-            name="date"
-            render={({ field }) => (
-              <FormItem className="flex-1">
-                <FormLabel>Start Date</FormLabel>
-                <DatePicker date={field.value} setDate={field.onChange} />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="time"
-            render={({ field }) => (
-              <FormItem className="flex-1">
-                <FormLabel>Time</FormLabel>
-                <FormControl>
-                  <div className="flex">
-                    <Input type="time" {...field} className="cursor-pointer" />
-                    <Clock className="ml-2 h-4 w-4 opacity-50 self-center" />
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+        <div className="space-y-2">
+          <Label htmlFor="frequency">Frequency</Label>
+          <Input
+            id="frequency"
+            name="frequency"
+            value={formData.frequency}
+            onChange={handleChange}
+            placeholder="e.g., Twice daily"
+            required
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="frequency"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Frequency</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                <FormControl>
-                  <SelectTrigger className="cursor-pointer">
-                    <SelectValue placeholder="Select frequency" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent position="popper" className="z-[99999]">
-                  <SelectItem value="once" className="cursor-pointer">
-                    Once
-                  </SelectItem>
-                  <SelectItem value="daily" className="cursor-pointer">
-                    Daily
-                  </SelectItem>
-                  <SelectItem value="twice-daily" className="cursor-pointer">
-                    Twice Daily
-                  </SelectItem>
-                  <SelectItem value="three-times-daily" className="cursor-pointer">
-                    Three Times Daily
-                  </SelectItem>
-                  <SelectItem value="as-needed" className="cursor-pointer">
-                    As Needed
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="isRecurring"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <FormLabel>Recurring Medication</FormLabel>
-                <FormDescription>Is this a recurring medication?</FormDescription>
-              </div>
-              <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} className="cursor-pointer" />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-
-        {isRecurring && (
-          <FormField
-            control={form.control}
-            name="endDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>End Date (Optional)</FormLabel>
-                <DatePicker date={field.value} setDate={field.onChange} />
-                <FormDescription>When should this medication end? Leave blank if ongoing.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-
-        <FormField
-          control={form.control}
-          name="instructions"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Instructions (Optional)</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Add any special instructions here..." className="resize-none" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-end">
-          <Button type="submit" disabled={isSubmitting || !selectedChild}>
-            {isSubmitting ? "Adding..." : "Add Medication"}
-          </Button>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Start Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !formData.startDate && "text-muted-foreground",
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.startDate ? format(formData.startDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={formData.startDate}
+                  onSelect={(date) => handleDateChange("startDate", date)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-2">
+            <Label>End Date (Optional)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !formData.endDate && "text-muted-foreground",
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.endDate ? format(formData.endDate, "PPP") : <span>Ongoing</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={formData.endDate}
+                  onSelect={(date) => handleDateChange("endDate", date)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
-      </form>
-    </Form>
+
+        <div className="space-y-2">
+          <Label>Time of Day</Label>
+          <div className="flex gap-2">
+            <Input
+              value={timeOfDayInput}
+              onChange={(e) => setTimeOfDayInput(e.target.value)}
+              placeholder="e.g., Morning, After lunch"
+            />
+            <Button type="button" onClick={addTimeOfDay} className="shrink-0">
+              Add
+            </Button>
+          </div>
+          {formData.timeOfDay.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {formData.timeOfDay.map((time) => (
+                <Badge key={time} variant="secondary" className="flex items-center gap-1">
+                  {time}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-4 w-4 p-0 hover:bg-transparent"
+                    onClick={() => removeTimeOfDay(time)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="instructions">Instructions</Label>
+          <Textarea
+            id="instructions"
+            name="instructions"
+            value={formData.instructions}
+            onChange={handleChange}
+            placeholder="Special instructions for taking this medication"
+            rows={2}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="status">Status</Label>
+          <Select value={formData.status} onValueChange={(value) => handleSelectChange("status", value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="paused">Paused</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="notes">Notes</Label>
+          <Textarea
+            id="notes"
+            name="notes"
+            value={formData.notes}
+            onChange={handleChange}
+            placeholder="Additional notes about this medication"
+            rows={3}
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button type="submit">{medication ? "Update Medication" : "Add Medication"}</Button>
+      </DialogFooter>
+    </form>
   )
 }
 

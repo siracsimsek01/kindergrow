@@ -28,7 +28,7 @@ export function QueryProvider({ children }: QueryProviderProps) {
     <QueryClientProvider client={queryClientRef.current}>
       {children}
       {/* Set position to bottom-right and disable floating mode to prevent popup issues */}
-      <ReactQueryDevtools initialIsOpen={false} position="bottom-right" buttonPosition="bottom-right" />
+      <ReactQueryDevtools initialIsOpen={false}  buttonPosition="bottom-right" />
     </QueryClientProvider>
   )
 }

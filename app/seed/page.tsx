@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { seedDatabase } from "@/lib/seed-database"
+import { seedDatabaseAction } from "@/lib/actions/seed-actions"
 import { useToast } from "@/components/ui/use-toast"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useRouter } from "next/navigation"
@@ -16,14 +16,14 @@ export default function SeedPage() {
   const handleSeed = async () => {
     try {
       setIsSeeding(true)
-      const result = await seedDatabase()
-      
+      const result = await seedDatabaseAction()
+
       if (result.success) {
         toast({
           title: "Success",
           description: "Database seeded successfully with sample data.",
         })
-        
+
         // Redirect to dashboard after successful seeding
         setTimeout(() => {
           router.push("/dashboard")
@@ -53,9 +53,7 @@ export default function SeedPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            The seeding process will:
-          </p>
+          <p className="text-sm text-muted-foreground mb-4">The seeding process will:</p>
           <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
             <li>Create 4 children with different ages</li>
             <li>Generate a year's worth of feeding, sleeping, diaper, growth, medication, and temperature events</li>
@@ -68,11 +66,7 @@ export default function SeedPage() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button 
-            onClick={handleSeed} 
-            disabled={isSeeding} 
-            className="w-full"
-          >
+          <Button onClick={handleSeed} disabled={isSeeding} className="w-full">
             {isSeeding ? (
               <>
                 <LoadingSpinner size="sm" className="mr-2" />
@@ -87,3 +81,4 @@ export default function SeedPage() {
     </div>
   )
 }
+

@@ -1,13 +1,12 @@
 "use client"
 
-import { useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
-import { CalendarIcon } from 'lucide-react'
-
-import { Button } from "@/components/ui/button"
+import { CalendarIcon } from "lucide-react"
+import { useChildContext } from "@/contexts/child-context"
 import {
   Dialog,
   DialogContent,
@@ -16,92 +15,86 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { useAppDispatch } from "@/lib/redux/hooks"
-import { updateChildAsync } from "@/lib/redux/slices/childrenSlice"
 
-const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
-  }),
+const childSchema = z.object({
+  name: z.string().min(1, "Name is required"),
   dateOfBirth: z.date({
-    required_error: "Date of birth is required.",
+    required_error: "Date of birth is required",
   }),
-  sex: z.enum(["Male", "Female"], {
-    required_error: "Please select a gender.",
+  sex: z.enum(["Male", "Female", "Other"], {
+    required_error: "Sex is required",
   }),
 })
 
 interface EditChildModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  child: {
-    id: string
-    name: string
-    dateOfBirth: string
-    sex: "Male" | "Female"
-  } | null
+  child: any
 }
 
 export function EditChildModal({ open, onOpenChange, child }: EditChildModalProps) {
-  const dispatch = useAppDispatch()
-  const { toast } = useToast()
+  const { triggerRefresh } = useChildContext()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
+  const [initialized, setInitialized] = useState(false)
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof childSchema>>({
+    resolver: zodResolver(childSchema),
     defaultValues: {
       name: child?.name || "",
       dateOfBirth: child?.dateOfBirth ? new Date(child.dateOfBirth) : new Date(),
-      sex: child?.sex as "Male" | "Female" | undefined,
+      sex: child?.sex || "Male",
     },
   })
 
-  // Update form when child changes
-  if (child && open) {
-    form.reset({
-      name: child.name,
-      dateOfBirth: new Date(child.dateOfBirth),
-      sex: child.sex,
-    })
-  }
+  // Initialize form values only once when the modal opens
+  useEffect(() => {
+    if (open && child && !initialized) {
+      form.reset({
+        name: child.name,
+        dateOfBirth: new Date(child.dateOfBirth),
+        sex: child.sex,
+      })
+      setInitialized(true)
+    } else if (!open) {
+      // Reset the initialized state when modal closes
+      setInitialized(false)
+    }
+  }, [open, child, form, initialized])
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(data: z.infer<typeof childSchema>) {
     if (!child) return
 
     try {
       setIsSubmitting(true)
-      console.log("Updating child data:", values)
+      const response = await fetch(`/api/children/${child.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
 
-      const resultAction = await dispatch(
-        updateChildAsync({
-          id: child.id,
-          data: {
-            name: values.name,
-            dateOfBirth: values.dateOfBirth.toISOString(),
-            sex: values.sex,
-          },
-        }),
-      )
-
-      if (updateChildAsync.fulfilled.match(resultAction)) {
-        toast({
-          title: "Child updated",
-          description: `${values.name}'s information has been updated successfully.`,
-        })
-
-        // Close modal
-        onOpenChange(false)
-      } else {
+      if (!response.ok) {
         throw new Error("Failed to update child")
       }
+
+      toast({
+        title: "Child updated",
+        description: "The child has been updated successfully.",
+      })
+
+      triggerRefresh()
+      onOpenChange(false)
     } catch (error) {
       console.error("Error updating child:", error)
       toast({
@@ -132,7 +125,6 @@ export function EditChildModal({ open, onOpenChange, child }: EditChildModalProp
                   <FormControl>
                     <Input placeholder="Enter child's name" {...field} />
                   </FormControl>
-                  <FormDescription>Your child's first name</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -143,7 +135,7 @@ export function EditChildModal({ open, onOpenChange, child }: EditChildModalProp
               name="dateOfBirth"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Date of birth</FormLabel>
+                  <FormLabel>Date of Birth</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -166,7 +158,9 @@ export function EditChildModal({ open, onOpenChange, child }: EditChildModalProp
                       />
                     </PopoverContent>
                   </Popover>
-                  <FormDescription>Your child's date of birth</FormDescription>
+                  <FormDescription>
+                    Your child's date of birth is used to calculate age and track development.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -176,31 +170,23 @@ export function EditChildModal({ open, onOpenChange, child }: EditChildModalProp
               control={form.control}
               name="sex"
               render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Gender</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={(value) => {
-                        field.onChange(value as "Male" | "Female")
-                      }}
-                      defaultValue={field.value}
-                      value={field.value}
-                      className="flex flex-col space-y-1"
-                    >
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="Male" />
-                        </FormControl>
-                        <FormLabel className="font-normal cursor-pointer">Male</FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="Female" />
-                        </FormControl>
-                        <FormLabel className="font-normal cursor-pointer">Female</FormLabel>
-                      </FormItem>
-                    </RadioGroup>
-                  </FormControl>
+                <FormItem>
+                  <FormLabel>Sex</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select sex" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    This information is used for growth charts and development tracking.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -224,3 +210,4 @@ export function EditChildModal({ open, onOpenChange, child }: EditChildModalProp
     </Dialog>
   )
 }
+

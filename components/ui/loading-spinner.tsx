@@ -1,5 +1,3 @@
-"use client"
-
 import { cn } from "@/lib/utils"
 
 interface LoadingSpinnerProps {
@@ -15,13 +13,9 @@ export function LoadingSpinner({ size = "md", className }: LoadingSpinnerProps) 
   }
 
   return (
-    <div className={cn("flex items-center justify-center", className)}>
-      <div
-        className={cn(
-          "animate-spin rounded-full border-t-transparent border-primary",
-          sizeClasses[size]
-        )}
-      />
-    </div>
+    <div
+      className={cn("animate-spin rounded-full border-t-transparent border-primary", sizeClasses[size], className)}
+    />
   )
 }
+

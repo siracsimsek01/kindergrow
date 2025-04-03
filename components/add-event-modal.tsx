@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
 import { format } from "date-fns"
-import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks"
+import { Clock } from "lucide-react"
+import { useChildContext } from "@/contexts/child-context"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,59 +16,134 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { DatePicker } from "@/components/ui/date-picker"
-import { addEvent } from "@/app/actions"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
-import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { triggerRefresh } from "@/lib/redux/slices/eventsSlice"
 
-const formSchema = z.object({
-  eventType: z.enum(["feeding", "sleeping", "diaper", "growth", "medication", "temperature"]),
-  date: z.date({
-    required_error: "Date is required.",
+// Define schemas for different event types
+const sleepEventSchema = z
+  .object({
+    startTime: z.date({
+      required_error: "Start time is required",
+    }),
+    endTime: z.date({
+      required_error: "End time is required",
+    }),
+    quality: z.string({
+      required_error: "Quality is required",
+    }),
+    notes: z.string().optional(),
+    location: z.string().optional(),
+  })
+  .refine((data) => data.endTime > data.startTime, {
+    message: "End time must be after start time",
+    path: ["endTime"],
+  })
+
+const feedingEventSchema = z.object({
+  timestamp: z.date({
+    required_error: "Time is required",
   }),
-  startTime: z.string().min(1, {
-    message: "Start time is required.",
+  type: z.string({
+    required_error: "Type is required",
   }),
-  endTime: z.string().optional(),
-  details: z.string().optional(),
-  value: z.string().optional(),
+  amount: z.string().optional(),
+  notes: z.string().optional(),
+})
+
+const diaperEventSchema = z.object({
+  timestamp: z.date({
+    required_error: "Time is required",
+  }),
+  type: z.string({
+    required_error: "Type is required",
+  }),
+  notes: z.string().optional(),
 })
 
 interface AddEventModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  eventType: string | null
+  onSuccess?: () => void
 }
 
-export function AddEventModal({ open, onOpenChange }: AddEventModalProps) {
-  const { toast } = useToast()
-  const dispatch = useAppDispatch()
-  const selectedChild = useAppSelector((state) => state.children.selectedChild)
+export function AddEventModal({ open, onOpenChange, eventType, onSuccess }: AddEventModalProps) {
+  const { selectedChild } = useChildContext()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  // Sleep form
+  const sleepForm = useForm<z.infer<typeof sleepEventSchema>>({
+    resolver: zodResolver(sleepEventSchema),
     defaultValues: {
-      eventType: "feeding",
-      date: new Date(),
-      startTime: format(new Date(), "HH:mm"),
-      endTime: format(new Date(), "HH:mm"),
-      details: "",
-      value: "",
+      startTime: new Date(),
+      endTime: new Date(new Date().getTime() + 60 * 60 * 1000), // 1 hour later
+      quality: "good",
+      notes: "",
+      location: "crib",
     },
   })
 
-  const eventType = form.watch("eventType")
+  // Feeding form
+  const feedingForm = useForm<z.infer<typeof feedingEventSchema>>({
+    resolver: zodResolver(feedingEventSchema),
+    defaultValues: {
+      timestamp: new Date(),
+      type: "breast",
+      amount: "",
+      notes: "",
+    },
+  })
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  // Diaper form
+  const diaperForm = useForm<z.infer<typeof diaperEventSchema>>({
+    resolver: zodResolver(diaperEventSchema),
+    defaultValues: {
+      timestamp: new Date(),
+      type: "wet",
+      notes: "",
+    },
+  })
+
+  // Reset forms when modal opens
+  useEffect(() => {
+    if (open) {
+      const now = new Date()
+
+      sleepForm.reset({
+        startTime: now,
+        endTime: new Date(now.getTime() + 60 * 60 * 1000),
+        quality: "good",
+        notes: "",
+        location: "crib",
+      })
+
+      feedingForm.reset({
+        timestamp: now,
+        type: "breast",
+        amount: "",
+        notes: "",
+      })
+
+      diaperForm.reset({
+        timestamp: now,
+        type: "wet",
+        notes: "",
+      })
+    }
+  }, [open, sleepForm, feedingForm, diaperForm])
+
+  const onSubmitSleep = async (values: z.infer<typeof sleepEventSchema>) => {
     if (!selectedChild) {
       toast({
         title: "Error",
-        description: "Please select a child first.",
+        description: "Please select a child first",
         variant: "destructive",
       })
       return
@@ -75,59 +151,36 @@ export function AddEventModal({ open, onOpenChange }: AddEventModalProps) {
 
     try {
       setIsSubmitting(true)
-      console.log("Submitting event data:", values)
 
-      // Format date and times
-      const date = values.date
-      const startTime = new Date(date)
-      const endTime = new Date(date)
-
-      if (values.startTime) {
-        const [hours, minutes] = values.startTime.split(":").map(Number)
-        startTime.setHours(hours, minutes)
-      }
-
-      if (values.endTime) {
-        const [hours, minutes] = values.endTime.split(":").map(Number)
-        endTime.setHours(hours, minutes)
-      }
-
-      const result = await addEvent({
-        childId: selectedChild.id,
-        eventType: values.eventType,
-        startTime: startTime.toISOString(),
-        endTime: values.endTime ? endTime.toISOString() : startTime.toISOString(),
-        details: values.details || "",
-        value: values.value ? Number.parseFloat(values.value) : undefined,
+      const response = await fetch(`/api/children/${selectedChild.id}/sleep`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
       })
 
-      if (result.success) {
-        toast({
-          title: "Event added",
-          description: `${values.eventType} event has been added for ${selectedChild.name}.`,
-        })
+      if (!response.ok) {
+        throw new Error("Failed to add sleep event")
+      }
 
-        // Refresh data
-        dispatch(triggerRefresh())
+      toast({
+        title: "Success",
+        description: "Sleep event added successfully",
+      })
 
-        // Reset form and close modal
-        form.reset({
-          eventType: "feeding",
-          date: new Date(),
-          startTime: format(new Date(), "HH:mm"),
-          endTime: format(new Date(), "HH:mm"),
-          details: "",
-          value: "",
-        })
-        onOpenChange(false)
-      } else {
-        throw new Error(result.error || "Failed to add event")
+      // Close modal
+      onOpenChange(false)
+
+      // Trigger refresh
+      if (onSuccess) {
+        onSuccess()
       }
     } catch (error) {
-      console.error("Error adding event:", error)
+      console.error("Error adding sleep event:", error)
       toast({
         title: "Error",
-        description: "Failed to add event. Please try again.",
+        description: "Failed to add sleep event. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -135,152 +188,532 @@ export function AddEventModal({ open, onOpenChange }: AddEventModalProps) {
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] z-[9999]">
-        <DialogHeader>
-          <DialogTitle>Add New Event</DialogTitle>
-          <DialogDescription>Record a new event for your child.</DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="eventType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Event Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder="Select event type" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="z-[9999]">
-                      <SelectItem value="feeding" className="cursor-pointer">
-                        Feeding
-                      </SelectItem>
-                      <SelectItem value="sleeping" className="cursor-pointer">
-                        Sleep
-                      </SelectItem>
-                      <SelectItem value="diaper" className="cursor-pointer">
-                        Diaper
-                      </SelectItem>
-                      <SelectItem value="growth" className="cursor-pointer">
-                        Growth
-                      </SelectItem>
-                      <SelectItem value="medication" className="cursor-pointer">
-                        Medication
-                      </SelectItem>
-                      <SelectItem value="temperature" className="cursor-pointer">
-                        Temperature
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+  const onSubmitFeeding = async (values: z.infer<typeof feedingEventSchema>) => {
+    if (!selectedChild) {
+      toast({
+        title: "Error",
+        description: "Please select a child first",
+        variant: "destructive",
+      })
+      return
+    }
 
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
-                  <DatePicker date={field.value} setDate={field.onChange} className="z-[9999]" />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    try {
+      setIsSubmitting(true)
 
-            <div className="flex gap-4">
-              <FormField
-                control={form.control}
-                name="startTime"
-                render={({ field }) => (
-                  <FormItem className="flex-1">
-                    <FormLabel>Start Time</FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} className="cursor-pointer" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      const response = await fetch(`/api/children/${selectedChild.id}/feeding`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      })
 
-              {(eventType === "sleeping" || eventType === "feeding") && (
+      if (!response.ok) {
+        throw new Error("Failed to add feeding event")
+      }
+
+      toast({
+        title: "Success",
+        description: "Feeding event added successfully",
+      })
+
+      // Close modal
+      onOpenChange(false)
+
+      // Trigger refresh
+      if (onSuccess) {
+        onSuccess()
+      }
+    } catch (error) {
+      console.error("Error adding feeding event:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add feeding event. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const onSubmitDiaper = async (values: z.infer<typeof diaperEventSchema>) => {
+    if (!selectedChild) {
+      toast({
+        title: "Error",
+        description: "Please select a child first",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+
+      const response = await fetch(`/api/children/${selectedChild.id}/diaper`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to add diaper event")
+      }
+
+      toast({
+        title: "Success",
+        description: "Diaper event added successfully",
+      })
+
+      // Close modal
+      onOpenChange(false)
+
+      // Trigger refresh
+      if (onSuccess) {
+        onSuccess()
+      }
+    } catch (error) {
+      console.error("Error adding diaper event:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add diaper event. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Render the appropriate form based on event type
+  const renderForm = () => {
+    if (!eventType) return null
+
+    switch (eventType) {
+      case "sleeping":
+        return (
+          <Form {...sleepForm}>
+            <form onSubmit={sleepForm.handleSubmit(onSubmitSleep)} className="space-y-6">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <FormField
-                  control={form.control}
-                  name="endTime"
+                  control={sleepForm.control}
+                  name="startTime"
                   render={({ field }) => (
-                    <FormItem className="flex-1">
-                      <FormLabel>End Time</FormLabel>
-                      <FormControl>
-                        <Input type="time" {...field} className="cursor-pointer" />
-                      </FormControl>
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Start Time</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground",
+                              )}
+                            >
+                              {field.value ? format(field.value, "PPP p") : "Select start time"}
+                              <Clock className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={(date) => field.onChange(date)}
+                            initialFocus
+                          />
+                          <div className="p-3 border-t">
+                            <Input
+                              type="time"
+                              value={format(field.value, "HH:mm")}
+                              onChange={(e) => {
+                                const [hours, minutes] = e.target.value.split(":")
+                                const newDate = new Date(field.value)
+                                newDate.setHours(Number.parseInt(hours, 10))
+                                newDate.setMinutes(Number.parseInt(minutes, 10))
+                                field.onChange(newDate)
+                              }}
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              )}
-            </div>
 
-            {(eventType === "feeding" ||
-              eventType === "growth" ||
-              eventType === "medication" ||
-              eventType === "temperature") && (
+                <FormField
+                  control={sleepForm.control}
+                  name="endTime"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>End Time</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground",
+                              )}
+                            >
+                              {field.value ? format(field.value, "PPP p") : "Select end time"}
+                              <Clock className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={(date) => field.onChange(date)}
+                            initialFocus
+                          />
+                          <div className="p-3 border-t">
+                            <Input
+                              type="time"
+                              value={format(field.value, "HH:mm")}
+                              onChange={(e) => {
+                                const [hours, minutes] = e.target.value.split(":")
+                                const newDate = new Date(field.value)
+                                newDate.setHours(Number.parseInt(hours, 10))
+                                newDate.setMinutes(Number.parseInt(minutes, 10))
+                                field.onChange(newDate)
+                              }}
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
-                control={form.control}
-                name="value"
+                control={sleepForm.control}
+                name="quality"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {eventType === "feeding"
-                        ? "Amount (oz/ml)"
-                        : eventType === "growth"
-                          ? "Measurement"
-                          : eventType === "temperature"
-                            ? "Temperature"
-                            : "Dosage"}
-                    </FormLabel>
+                    <FormLabel>Sleep Quality</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select sleep quality" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="excellent">Excellent</SelectItem>
+                        <SelectItem value="good">Good</SelectItem>
+                        <SelectItem value="fair">Fair</SelectItem>
+                        <SelectItem value="poor">Poor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={sleepForm.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select location" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="crib">Crib</SelectItem>
+                        <SelectItem value="bassinet">Bassinet</SelectItem>
+                        <SelectItem value="parent's bed">Parent's Bed</SelectItem>
+                        <SelectItem value="stroller">Stroller</SelectItem>
+                        <SelectItem value="car seat">Car Seat</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={sleepForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.1" {...field} className="cursor-pointer" />
+                      <Textarea placeholder="Add any notes about this sleep session" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
 
-            <FormField
-              control={form.control}
-              name="details"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Add any additional details here..." {...field} className="cursor-pointer" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Adding..." : "Add Sleep Event"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        )
 
-            <DialogFooter>
-              <Button type="submit" disabled={isSubmitting || !selectedChild} className="cursor-pointer">
-                {isSubmitting ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Adding...
-                  </>
-                ) : (
-                  "Add Event"
+      case "feeding":
+        return (
+          <Form {...feedingForm}>
+            <form onSubmit={feedingForm.handleSubmit(onSubmitFeeding)} className="space-y-6">
+              <FormField
+                control={feedingForm.control}
+                name="timestamp"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Time</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
+                          >
+                            {field.value ? format(field.value, "PPP p") : "Select time"}
+                            <Clock className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={(date) => field.onChange(date)}
+                          initialFocus
+                        />
+                        <div className="p-3 border-t">
+                          <Input
+                            type="time"
+                            value={format(field.value, "HH:mm")}
+                            onChange={(e) => {
+                              const [hours, minutes] = e.target.value.split(":")
+                              const newDate = new Date(field.value)
+                              newDate.setHours(Number.parseInt(hours, 10))
+                              newDate.setMinutes(Number.parseInt(minutes, 10))
+                              field.onChange(newDate)
+                            }}
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+              />
+
+              <FormField
+                control={feedingForm.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Feeding Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select feeding type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="breast">Breast</SelectItem>
+                        <SelectItem value="formula">Formula</SelectItem>
+                        <SelectItem value="solid">Solid Food</SelectItem>
+                        <SelectItem value="mixed">Mixed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={feedingForm.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Amount (optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., 4 oz, 120ml, etc." {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Enter the amount if applicable (e.g., formula amount, breast milk pumped)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={feedingForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Add any notes about this feeding" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Adding..." : "Add Feeding Event"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        )
+
+      case "diaper":
+        return (
+          <Form {...diaperForm}>
+            <form onSubmit={diaperForm.handleSubmit(onSubmitDiaper)} className="space-y-6">
+              <FormField
+                control={diaperForm.control}
+                name="timestamp"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Time</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
+                          >
+                            {field.value ? format(field.value, "PPP p") : "Select time"}
+                            <Clock className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={(date) => field.onChange(date)}
+                          initialFocus
+                        />
+                        <div className="p-3 border-t">
+                          <Input
+                            type="time"
+                            value={format(field.value, "HH:mm")}
+                            onChange={(e) => {
+                              const [hours, minutes] = e.target.value.split(":")
+                              const newDate = new Date(field.value)
+                              newDate.setHours(Number.parseInt(hours, 10))
+                              newDate.setMinutes(Number.parseInt(minutes, 10))
+                              field.onChange(newDate)
+                            }}
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={diaperForm.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Diaper Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select diaper type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="wet">Wet</SelectItem>
+                        <SelectItem value="dirty">Dirty</SelectItem>
+                        <SelectItem value="mixed">Mixed</SelectItem>
+                        <SelectItem value="dry">Dry</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={diaperForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Add any notes about this diaper change" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Adding..." : "Add Diaper Event"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        )
+
+      default:
+        return <div className="py-6 text-center text-muted-foreground">Unknown event type: {eventType}</div>
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>
+            {eventType === "sleeping" && "Add Sleep Event"}
+            {eventType === "feeding" && "Add Feeding Event"}
+            {eventType === "diaper" && "Add Diaper Event"}
+            {!eventType && "Add Event"}
+          </DialogTitle>
+          <DialogDescription>
+            {eventType === "sleeping" && "Record a sleep session for your child."}
+            {eventType === "feeding" && "Record a feeding session for your child."}
+            {eventType === "diaper" && "Record a diaper change for your child."}
+            {!eventType && "Select an event type to add."}
+          </DialogDescription>
+        </DialogHeader>
+        {!selectedChild ? (
+          <div className="py-6 text-center">
+            <p className="text-muted-foreground mb-4">Please select a child first</p>
+            <Button onClick={() => onOpenChange(false)}>Close</Button>
+          </div>
+        ) : (
+          renderForm()
+        )}
       </DialogContent>
     </Dialog>
   )

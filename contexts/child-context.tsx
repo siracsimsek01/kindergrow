@@ -1,189 +1,241 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import type React from "react"
+import { createContext, useState, useContext, useEffect, useCallback } from "react"
+import { useUser } from "@clerk/nextjs"
+import { useToast } from "@/components/ui/use-toast"
+import { AddChildModal } from "@/components/add-child-modal"
+import { AddEventModal } from "@/components/add-event-modal"
 
-type Child = {
-  _id?: string
-  id?: string
-  name: string
-  dateOfBirth: string
-  sex: "Male" | "Female"
-  photoUrl?: string | null
-  createdAt?: string
-  updatedAt?: string
-}
-
-type ChildContextType = {
-  children: Child[]
-  selectedChild: Child | null
+// Define the context type with expanded functionality
+interface ChildContextType {
+  selectedChild: any | null
+  setSelectedChild: (child: any | null) => void
+  children: any[]
   isLoading: boolean
-  error: string | null
-  lastUpdated: number
-  isAddChildModalOpen: boolean
   isAddEventModalOpen: boolean
-  setIsAddChildModalOpen: (open: boolean) => void
-  setIsAddEventModalOpen: (open: boolean) => void
-  setSelectedChild: (child: Child) => void
-  addChild: (childData: Omit<Child, "_id" | "id" | "createdAt" | "updatedAt">) => Promise<Child>
-  updateChild: (id: string, data: Partial<Child>) => Promise<void>
-  deleteChild: (id: string) => Promise<void>
-  refreshChildren: () => Promise<void>
+  setIsAddEventModalOpen: (isOpen: boolean, eventType?: string) => void
+  isAddChildModalOpen: boolean
+  setIsAddChildModalOpen: (isOpen: boolean) => void
+  eventType: string | null
+  lastUpdated: number
   triggerRefresh: () => void
+  isRefreshing: boolean
+  enableAutoRefresh: (enabled: boolean) => void
+  autoRefreshEnabled: boolean
 }
 
-const ChildContext = createContext<ChildContextType | undefined>(undefined)
+// Create the context with default values
+const ChildContext = createContext<ChildContextType>({
+  selectedChild: null,
+  setSelectedChild: () => {},
+  children: [],
+  isLoading: true,
+  isAddEventModalOpen: false,
+  setIsAddEventModalOpen: () => {},
+  isAddChildModalOpen: false,
+  setIsAddChildModalOpen: () => {},
+  eventType: null,
+  lastUpdated: Date.now(),
+  triggerRefresh: () => {},
+  isRefreshing: false,
+  enableAutoRefresh: () => {},
+  autoRefreshEnabled: false,
+})
 
-export function ChildProvider({ children }: { children: ReactNode }) {
-  const [childrenData, setChildrenData] = useState<Child[]>([])
-  const [selectedChild, setSelectedChild] = useState<Child | null>(null)
+// Custom hook to use the child context
+export const useChildContext = () => useContext(ChildContext)
+
+// Provider component
+export const ChildProvider = ({ children: reactChildren }: { children: React.ReactNode }) => {
+  const { user, isLoaded } = useUser()
+  const { toast } = useToast()
+  const [selectedChild, setSelectedChild] = useState<any | null>(null)
+  const [children, setChildren] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [lastUpdated, setLastUpdated] = useState(Date.now())
-  const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false)
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false)
+  const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false)
+  const [eventType, setEventType] = useState<string | null>(null)
+  const [lastUpdated, setLastUpdated] = useState(Date.now())
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false)
+  const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null)
 
-  const triggerRefresh = () => {
-    setLastUpdated(Date.now())
-  }
-
-  const fetchChildren = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      const response = await fetch("/api/children")
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch children: ${response.status}`)
-      }
-
-      const data = await response.json()
-      console.log("Fetched children:", data)
-
-      setChildrenData(data)
-
-      // Select the first child if none is selected
-      if (data.length > 0 && !selectedChild) {
-        setSelectedChild(data[0])
-      } else if (selectedChild && !data.find(child => child.id === selectedChild.id)) {
-        // If the currently selected child no longer exists in the data, reset selection
-        setSelectedChild(data.length > 0 ? data[0] : null)
-      }
-    } catch (err) {
-      console.error("Error fetching children:", err)
-      setError(err instanceof Error ? err.message : "Failed to fetch children")
-    } finally {
-      setIsLoading(false)
+  // Function to handle opening/closing the add event modal
+  const handleSetIsAddEventModalOpen = useCallback((isOpen: boolean, type?: string) => {
+    if (isOpen && type) {
+      setEventType(type)
     }
-  }
 
-  const addChild = async (childData: Omit<Child, "_id" | "id" | "createdAt" | "updatedAt">) => {
-    try {
-      console.log("Adding child:", childData)
-      const response = await fetch("/api/children", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(childData),
-      })
+    setIsAddEventModalOpen(isOpen)
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to add child")
-      }
-
-      const result = await response.json()
-      console.log("Child added successfully:", result)
-
-      // Refresh the children list
-      await fetchChildren()
-      
-      return result
-    } catch (err) {
-      console.error("Error adding child:", err)
-      throw err
+    if (!isOpen) {
+      // Only clear event type when closing the modal
+      setTimeout(() => setEventType(null), 300)
     }
-  }
-
-  const updateChild = async (id: string, data: Partial<Child>) => {
-    try {
-      const response = await fetch(`/api/children/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to update child")
-      }
-
-      // Refresh the children list
-      await fetchChildren()
-    } catch (err) {
-      console.error("Error updating child:", err)
-      throw err
-    }
-  }
-
-  const deleteChild = async (id: string) => {
-    try {
-      const response = await fetch(`/api/children/${id}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to delete child")
-      }
-
-      // Refresh the children list
-      await fetchChildren()
-
-      // If the deleted child was selected, select another one
-      if (selectedChild && (selectedChild._id === id || selectedChild.id === id)) {
-        setSelectedChild(childrenData.length > 1 ? childrenData.find((c) => c._id !== id && c.id !== id) || null : null)
-      }
-    } catch (err) {
-      console.error("Error deleting child:", err)
-      throw err
-    }
-  }
-
-  useEffect(() => {
-    fetchChildren()
   }, [])
 
+  // Function to handle opening/closing the add child modal
+  const handleSetIsAddChildModalOpen = useCallback((isOpen: boolean) => {
+    setIsAddChildModalOpen(isOpen)
+  }, [])
+
+  // Function to trigger a refresh of the data
+  const triggerRefresh = useCallback(() => {
+    setIsRefreshing(true)
+    setLastUpdated(Date.now())
+
+    // Set a timeout to reset the refreshing state after a short delay
+    setTimeout(() => {
+      setIsRefreshing(false)
+    }, 1000)
+  }, [])
+
+  // Function to enable/disable auto-refresh
+  const enableAutoRefresh = useCallback(
+    (enabled: boolean) => {
+      setAutoRefreshEnabled(enabled)
+
+      // Clear existing interval if any
+      if (refreshInterval) {
+        clearInterval(refreshInterval)
+        setRefreshInterval(null)
+      }
+
+      // Set up new interval if enabled
+      if (enabled) {
+        const interval = setInterval(() => {
+          triggerRefresh()
+        }, 60000) // Refresh every minute
+
+        setRefreshInterval(interval)
+      }
+    },
+    [refreshInterval, triggerRefresh],
+  )
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval)
+      }
+    }
+  }, [refreshInterval])
+
+  // Load children when user is loaded or lastUpdated changes
+  useEffect(() => {
+    const loadChildren = async () => {
+      if (!isLoaded || !user) {
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        setIsLoading(true)
+        const response = await fetch("/api/children")
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch children")
+        }
+
+        const data = await response.json()
+        setChildren(data)
+
+        // If there are children, select the first one by default
+        // or restore the previously selected child if it exists
+        if (data.length > 0) {
+          const storedChildId = localStorage.getItem("selectedChildId")
+
+          if (storedChildId) {
+            const storedChild = data.find((child: any) => child._id === storedChildId)
+            if (storedChild) {
+              setSelectedChild(storedChild)
+            } else {
+              setSelectedChild(data[0])
+              localStorage.setItem("selectedChildId", data[0]._id)
+            }
+          } else {
+            setSelectedChild(data[0])
+            localStorage.setItem("selectedChildId", data[0]._id)
+          }
+        } else {
+          // No children found, clear selected child
+          setSelectedChild(null)
+          localStorage.removeItem("selectedChildId")
+        }
+
+        setIsLoading(false)
+      } catch (error) {
+        console.error("Error loading children:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load children. Please try again.",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+      }
+    }
+
+    loadChildren()
+  }, [isLoaded, user, toast, lastUpdated])
+
+  // Update localStorage when selected child changes
+  useEffect(() => {
+    if (selectedChild) {
+      localStorage.setItem("selectedChildId", selectedChild._id)
+    }
+  }, [selectedChild])
+
+  const contextValue = {
+    selectedChild,
+    setSelectedChild,
+    children,
+    isLoading,
+    isAddEventModalOpen,
+    setIsAddEventModalOpen: handleSetIsAddEventModalOpen,
+    isAddChildModalOpen,
+    setIsAddChildModalOpen: handleSetIsAddChildModalOpen,
+    eventType,
+    lastUpdated,
+    triggerRefresh,
+    isRefreshing,
+    enableAutoRefresh,
+    autoRefreshEnabled,
+  }
+
+  // Handle success callbacks from modals
+  const handleChildAdded = useCallback(() => {
+    triggerRefresh()
+    toast({
+      title: "Success",
+      description: "Child added successfully",
+    })
+  }, [triggerRefresh, toast])
+
+  const handleEventAdded = useCallback(() => {
+    triggerRefresh()
+    toast({
+      title: "Success",
+      description: "Event added successfully",
+    })
+  }, [triggerRefresh, toast])
+
   return (
-    <ChildContext.Provider
-      value={{
-        children: childrenData,
-        selectedChild,
-        isLoading,
-        error,
-        lastUpdated,
-        isAddChildModalOpen,
-        isAddEventModalOpen,
-        setIsAddChildModalOpen,
-        setIsAddEventModalOpen,
-        setSelectedChild,
-        addChild,
-        updateChild,
-        deleteChild,
-        refreshChildren: fetchChildren,
-        triggerRefresh,
-      }}
-    >
-      {children}
+    <ChildContext.Provider value={contextValue}>
+      {reactChildren}
+      <AddChildModal
+        open={isAddChildModalOpen}
+        onOpenChange={handleSetIsAddChildModalOpen}
+        onSuccess={handleChildAdded}
+      />
+      <AddEventModal
+        open={isAddEventModalOpen}
+        onOpenChange={(isOpen) => handleSetIsAddEventModalOpen(isOpen)}
+        eventType={eventType}
+        onSuccess={handleEventAdded}
+      />
     </ChildContext.Provider>
   )
 }
 
-export function useChildContext() {
-  const context = useContext(ChildContext)
-  if (context === undefined) {
-    throw new Error("useChildContext must be used within a ChildProvider")
-  }
-  return context
-}

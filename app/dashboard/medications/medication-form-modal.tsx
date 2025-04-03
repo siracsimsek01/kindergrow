@@ -11,7 +11,7 @@ interface MedicationFormModalProps {
 export function MedicationFormModal({ open, onOpenChange }: MedicationFormModalProps) {
   const { selectedChild } = useChildContext()
 
-  const handleSuccess = () => {
+  const handleSubmit = () => {
     onOpenChange(false)
   }
 
@@ -24,7 +24,7 @@ export function MedicationFormModal({ open, onOpenChange }: MedicationFormModalP
             {selectedChild ? `Add a new medication for ${selectedChild.name}` : "Please select a child first"}
           </DialogDescription>
         </DialogHeader>
-        <MedicationForm onSuccess={handleSuccess} />
+        <MedicationForm onSubmit={handleSubmit} />
       </DialogContent>
     </Dialog>
   )

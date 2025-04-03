@@ -41,7 +41,20 @@ export function SleepChart() {
       const events = await response.json()
 
       // Calculate sleep duration in hours for each event
-      const sleepByDay = events.reduce((acc, event) => {
+      interface SleepEvent {
+        timestamp: string
+        startTime?: string
+        endTime?: string
+      }
+
+      interface SleepByDay {
+        [date: string]: {
+          date: string
+          hours: number
+        }
+      }
+
+      const sleepByDay: SleepByDay = events.reduce((acc: SleepByDay, event: SleepEvent) => {
         const date = format(parseISO(event.timestamp), "MM/dd")
         const startTime = new Date(event.startTime || event.timestamp)
         const endTime = new Date(event.endTime || event.timestamp)
