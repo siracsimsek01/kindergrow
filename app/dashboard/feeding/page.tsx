@@ -11,6 +11,7 @@ import { format } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Utensils } from "lucide-react"
+import { FeedingPageSkeleton } from "@/components/ui/loading-skeleton"
 
 interface FeedingEvent {
   id: string
@@ -30,6 +31,7 @@ export default function FeedingTrackingPage() {
   const [error, setError] = useState<string | null>(null)
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [activeTab, setActiveTab] = useState("overview")
+  const [isEventsLoading, setIsEventsLoading] = useState(true)
 
   useEffect(() => {
     const fetchFeedingEvents = async () => {
@@ -137,6 +139,10 @@ export default function FeedingTrackingPage() {
   }
 
   const isLoaded = !isChildLoading && !isLoading
+
+  if (isLoading || isEventsLoading) {
+    return <FeedingPageSkeleton />
+  }
 
   return (
     <div className="space-y-6">

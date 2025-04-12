@@ -1,51 +1,164 @@
 "use server"
 
 import { auth } from "@clerk/nextjs/server"
-import connectToDatabase from "@/lib/mongodb"
-import { ObjectId } from "mongodb"
+import { prisma } from "@/lib/db"
 
-
-export async function getReportData(childId: string, reportType: string, startDate: Date, endDate: Date) {
+export async function getChildReports(childId: string, startDate?: Date, endDate?: Date) {
   try {
     const { userId } = await auth()
     if (!userId) throw new Error("Unauthorized")
 
-    const { db } = await connectToDatabase()
-
     // Verify child belongs to user
-    const child = await db.collection("children").findOne({
-      _id: new ObjectId(childId),
-      userId,
+    const child = await prisma.child.findFirst({
+      where: {
+        id: childId,
+        userId,
+      },
     })
 
     if (!child) {
-      throw new Error("Child not found")
+      throw new Error("Child not found or not authorized")
     }
 
-    // Get events based on report type
-    const events = await db
-      .collection("events")
-      .find({
-        userId,
-        childId,
-        eventType: reportType,
-        startTime: {
-          $gte: startDate,
-          $lte: endDate,
-        },
-      })
-      .sort({ startTime: 1 })
-      .toArray()
+    // Build query
+    const query: any = {
+      childId,
+    }
+
+    if (startDate || endDate) {
+      query.timestamp = {}
+      if (startDate) query.timestamp.gte = startDate
+      if (endDate) query.timestamp.lte = endDate
+    }
+
+    // Get all events for the child
+    const events = await prisma.event.findMany({
+      where: query,
+      orderBy: {
+        timestamp: "desc",
+      },
+    })
+
+    // Group events by type
+    const eventsByType: Record<string, any[]> = {}
+    events.forEach((event) => {
+      if (!eventsByType[event.eventType]) {
+        eventsByType[event.eventType] = []
+      }
+      eventsByType[event.eventType].push(event)
+    })
+
+    // Calculate stats for each event type
+    const sleepEvents = eventsByType.sleeping || []
+    const feedingEvents = eventsByType.feeding || []
+    const diaperEvents = eventsByType.diaper || []
+    const growthEvents = eventsByType.growth || []
+    const medicationEvents = eventsByType.medication || []
+    const temperatureEvents = eventsByType.temperature || []
+
+    // Sleep stats
+    const sleepStats = {
+      count: sleepEvents.length,
+      totalDuration: sleepEvents.reduce((sum, event) => sum + (event.value || 0), 0),
+      averageDuration:
+        sleepEvents.length > 0
+          ? sleepEvents.reduce((sum, event) => sum + (event.value || 0), 0) / sleepEvents.length
+          : 0,
+    }
+
+    // Feeding stats
+    const feedingStats = {
+      count: feedingEvents.length,
+      byType: {} as Record<string, number>,
+    }
+
+    feedingEvents.forEach((event) => {
+      let details: { type?: string } = {}
+      try {
+        details = JSON.parse(event.details || "{}") as { type?: string }
+      } catch (e) {
+        console.error("Error parsing feeding details:", e)
+      }
+
+      const type = details.type || "unknown"
+      feedingStats.byType[type] = (feedingStats.byType[type] || 0) + 1
+    })
+
+    // Diaper stats
+    const diaperStats = {
+      count: diaperEvents.length,
+      byType: {} as Record<string, number>,
+    }
+
+    diaperEvents.forEach((event) => {
+      let details: { type?: string } = {}
+      try {
+        details = JSON.parse(event.details || "{}") as { type?: string }
+      } catch (e) {
+        console.error("Error parsing diaper details:", e)
+      }
+
+      const type = details.type || "unknown"
+      diaperStats.byType[type] = (diaperStats.byType[type] || 0) + 1
+    })
+
+    // Growth stats
+    const growthStats = {
+      count: growthEvents.length,
+      latestWeight: growthEvents.length > 0 ? growthEvents[0].value : null,
+      weightGain: growthEvents.length > 1 ? growthEvents[0].value - growthEvents[growthEvents.length - 1].value : null,
+    }
+
+    // Medication stats
+    const medicationStats = {
+      count: medicationEvents.length,
+      byMedication: {} as Record<string, number>,
+    }
+
+    medicationEvents.forEach((event) => {
+      let details: { medication?: string } = {}
+      try {
+        details = JSON.parse(event.details || "{}") as { medication?: string }
+      } catch (e) {
+        console.error("Error parsing medication details:", e)
+      }
+
+      const medication = details.medication || "unknown"
+      medicationStats.byMedication[medication] = (medicationStats.byMedication[medication] || 0) + 1
+    })
+
+    // Temperature stats
+    const temperatureStats = {
+      count: temperatureEvents.length,
+      average:
+        temperatureEvents.length > 0
+          ? temperatureEvents.reduce((sum, event) => sum + (event.value || 0), 0) / temperatureEvents.length
+          : null,
+      highest: temperatureEvents.length > 0 ? Math.max(...temperatureEvents.map((event) => event.value || 0)) : null,
+      lowest: temperatureEvents.length > 0 ? Math.min(...temperatureEvents.map((event) => event.value || 0)) : null,
+    }
 
     return {
-      child,
-      events,
-      reportType,
-      startDate,
-      endDate,
+      totalEvents: events.length,
+      eventsByType: {
+        sleep: sleepEvents.length,
+        feeding: feedingEvents.length,
+        diaper: diaperEvents.length,
+        growth: growthEvents.length,
+        medication: medicationEvents.length,
+        temperature: temperatureEvents.length,
+      },
+      stats: {
+        sleep: sleepStats,
+        feeding: feedingStats,
+        diaper: diaperStats,
+        growth: growthStats,
+        medication: medicationStats,
+        temperature: temperatureStats,
+      },
     }
   } catch (error) {
-    console.error(`Error fetching ${reportType} report data:`, error)
+    console.error("Error generating reports:", error)
     throw error
   }
 }
@@ -56,21 +169,25 @@ export async function generateReport(formData: FormData) {
     if (!userId) throw new Error("Unauthorized")
 
     const childId = formData.get("childId") as string
+    const startDateStr = formData.get("startDate") as string
+    const endDateStr = formData.get("endDate") as string
     const reportType = formData.get("reportType") as string
-    const startDate = formData.get("startDate") as string
-    const endDate = formData.get("endDate") as string
 
-    if (!childId || !reportType || !startDate || !endDate) {
+    if (!childId || !startDateStr || !endDateStr || !reportType) {
       throw new Error("Missing required fields")
     }
 
-    const reportData = await getReportData(childId, reportType, new Date(startDate), new Date(endDate))
+    const startDate = new Date(startDateStr)
+    const endDate = new Date(endDateStr)
 
-    // In a real implementation, you would generate a PDF here
-    // For now, we'll just return the data
+    // Get report data
+    const reportData = await getChildReports(childId, startDate, endDate)
 
     return {
       success: true,
+      reportType,
+      startDate,
+      endDate,
       data: reportData,
     }
   } catch (error) {
@@ -78,58 +195,3 @@ export async function generateReport(formData: FormData) {
     throw error
   }
 }
-
-export async function getGrowthData(childId: string) {
-  try {
-    const { userId } = await auth()
-    if (!userId) throw new Error("Unauthorized")
-
-    const { db } = await connectToDatabase()
-
-    // Get all growth events for the child
-    const growthEvents = await db
-      .collection("events")
-      .find({
-        userId,
-        childId,
-        eventType: "growth",
-      })
-      .sort({ startTime: 1 })
-      .toArray()
-
-    // Format data for charts
-    const weightData = growthEvents
-      .filter((event) => event.data.weight)
-      .map((event) => ({
-        date: event.startTime,
-        value: event.data.weight,
-        unit: event.data.weightUnit,
-      }))
-
-    const heightData = growthEvents
-      .filter((event) => event.data.height)
-      .map((event) => ({
-        date: event.startTime,
-        value: event.data.height,
-        unit: event.data.heightUnit,
-      }))
-
-    const headCircumferenceData = growthEvents
-      .filter((event) => event.data.headCircumference)
-      .map((event) => ({
-        date: event.startTime,
-        value: event.data.headCircumference,
-        unit: "cm",
-      }))
-
-    return {
-      weight: weightData,
-      height: heightData,
-      headCircumference: headCircumferenceData,
-    }
-  } catch (error) {
-    console.error("Error fetching growth data:", error)
-    throw error
-  }
-}
-

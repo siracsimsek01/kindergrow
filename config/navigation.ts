@@ -43,7 +43,7 @@ export const navigationItems = [
   },
   {
     label: "Seed Database",
-    href: "/seed",
+    href: "/dashboard/seed",
     icon: Database,
   },
 ]

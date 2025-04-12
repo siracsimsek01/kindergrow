@@ -1,42 +1,66 @@
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import connectToDatabase from "@/lib/mongodb"
+import { prisma } from "@/lib/db"
 
-export async function DELETE() {
+export async function POST() {
   try {
-    // Get the authenticated user from Clerk
-    const { userId } = auth()
+    const { userId } = await auth()
 
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Connect to database
-    const { db } = await connectToDatabase()
+    console.log(`Starting database cleanup for user: ${userId}`)
 
-    // Get the current user
-    const user = await db.collection("users").findOne({ clerkId: userId })
+    // Check if user exists in database
+    const user = await prisma.user.findUnique({
+      where: { clerkId: userId },
+    })
 
     if (!user) {
-      // If user doesn't exist in our database yet, there's nothing to delete
-      return NextResponse.json({ success: true, message: "No data to remove" })
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Delete all children and associated data for this user
-    const children = await db.collection("children").find({ userId: user._id }).toArray()
+    console.log(`Found user with ID: ${user.id}`)
 
+    // Get all children for this user
+    const children = await prisma.child.findMany({
+      where: { userId: user.id },
+      select: { id: true },
+    })
+
+    console.log(`Found ${children.length} children to clean up`)
+
+    // Delete all events for each child
     for (const child of children) {
-      // Delete all events for this child
-      await db.collection("events").deleteMany({ childId: child._id })
+      const deletedEvents = await prisma.event.deleteMany({
+        where: { childId: child.id },
+      })
+      console.log(`Deleted ${deletedEvents.count} events for child ${child.id}`)
     }
 
     // Delete all children
-    await db.collection("children").deleteMany({ userId: user._id })
+    const deletedChildren = await prisma.child.deleteMany({
+      where: { userId: user.id },
+    })
 
-    return NextResponse.json({ success: true, message: "All seeded data has been removed" })
-  } catch (error: any) {
-    console.error("Error removing seeded data:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.log(`Deleted ${deletedChildren.count} children`)
+
+    return NextResponse.json({
+      success: true,
+      message: "Database cleared successfully",
+      data: {
+        deletedChildren: deletedChildren.count,
+      },
+    })
+  } catch (error) {
+    console.error("Error clearing database:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to clear database",
+        details: error.message,
+      },
+      { status: 500 },
+    )
   }
 }
-

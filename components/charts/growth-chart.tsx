@@ -1,217 +1,113 @@
 "use client"
 
-import React from "react"
-
 import { useState, useEffect } from "react"
+import { format, parseISO } from "date-fns"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import { useChildContext } from "@/contexts/child-context"
-import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { format } from "date-fns"
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  type TooltipProps,
-} from "recharts"
-
-interface GrowthData {
-  date: string
-  formattedDate: string
-  weight: number | null
-  height: number | null
-  headCircumference: number | null
-}
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function GrowthChart() {
-  const { selectedChild, lastUpdated } = useChildContext()
-  const [data, setData] = useState<GrowthData[]>([])
+  const { selectedChild } = useChildContext()
+  const [growthData, setGrowthData] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchGrowthData = async () => {
       if (!selectedChild) {
-        setData([])
+        setGrowthData([])
         setIsLoading(false)
         return
       }
 
       try {
         setIsLoading(true)
-        setError(null)
-        console.log(`Fetching growth data for child ID: ${selectedChild.id}`)
-
-        const response = await fetch(`/api/events?childId=${selectedChild.id}&eventType=growth`, {
-          cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache",
-          },
-        })
+        const response = await fetch(`/api/children/${selectedChild.id}/events?eventType=growth`)
 
         if (!response.ok) {
-          throw new Error(`Failed to fetch growth data: ${response.status}`)
+          throw new Error("Failed to fetch growth data")
         }
 
-        const events = await response.json()
-        console.log(`Received ${events.length} growth events`)
+        const data = await response.json()
 
-        // Process and sort events by date
-        const growthData: GrowthData[] = events
-          .map((event) => {
-            const date = new Date(event.timestamp)
-            const details = event.details || ""
+        // Format data for the chart
+        const formattedData = data.map((entry: any) => ({
+          date: format(parseISO(entry.timestamp), "MMM d"),
+          weight: entry.value,
+          timestamp: entry.timestamp,
+        }))
 
-            // Extract measurements from details
-            let weight = null
-            let height = null
-            let headCircumference = null
+        // Sort by date
+        formattedData.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
-            if (event.value) {
-              weight = event.value
-            }
-
-            const heightMatch = details.match(/Height: (\d+(\.\d+)?)/)
-            if (heightMatch) {
-              height = Number.parseFloat(heightMatch[1])
-            }
-
-            const headMatch = details.match(/Head Circumference: (\d+(\.\d+)?)/)
-            if (headMatch) {
-              headCircumference = Number.parseFloat(headMatch[1])
-            }
-
-            return {
-              date: format(date, "yyyy-MM-dd"),
-              formattedDate: format(date, "MM/dd/yyyy"),
-              weight,
-              height,
-              headCircumference,
-            }
-          })
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-
-        setData(growthData)
+        setGrowthData(formattedData)
       } catch (error) {
         console.error("Error fetching growth data:", error)
-        setError("Failed to fetch growth data")
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchData()
-  }, [selectedChild, lastUpdated])
-
-  const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="custom-tooltip">
-          <p className="custom-tooltip-label">{label}</p>
-          <div className="custom-tooltip-data">
-            {payload.map(
-              (entry, index) =>
-                entry.value !== null && (
-                  <React.Fragment key={`tooltip-${index}`}>
-                    <span className="custom-tooltip-key">{entry.name}:</span>
-                    <span className="custom-tooltip-value">
-                      {entry.name === "Weight"
-                        ? `${entry.value} kg`
-                        : entry.name === "Height"
-                          ? `${entry.value} cm`
-                          : `${entry.value} cm`}
-                    </span>
-                  </React.Fragment>
-                ),
-            )}
-          </div>
-        </div>
-      )
-    }
-    return null
-  }
-
-  if (!selectedChild) {
-    return (
-      <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
-        <p className="text-sm text-muted-foreground">Select a child to view growth data</p>
-      </div>
-    )
-  }
+    fetchGrowthData()
+  }, [selectedChild])
 
   if (isLoading) {
     return (
-      <div className="flex h-[300px] items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-8 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[300px] w-full" />
+        </CardContent>
+      </Card>
     )
   }
 
-  if (error) {
+  if (growthData.length === 0) {
     return (
-      <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    )
-  }
-
-  if (data.length === 0) {
-    return (
-      <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
-        <p className="text-sm text-muted-foreground">No growth data available for {selectedChild.name}</p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Growth Chart</CardTitle>
+          <CardDescription>Track your child's growth over time</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center h-[300px]">
+          <p className="text-muted-foreground">No growth data available</p>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="h-[300px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart
-          data={data}
-          margin={{
-            top: 20,
-            right: 30,
-            left: 0,
-            bottom: 5,
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="formattedDate" />
-          <YAxis yAxisId="left" orientation="left" />
-          <YAxis yAxisId="right" orientation="right" />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend />
-          <Line
-            yAxisId="left"
-            type="monotone"
-            dataKey="weight"
-            name="Weight"
-            stroke="hsl(var(--chart-1))"
-            activeDot={{ r: 8 }}
-            connectNulls
-          />
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="height"
-            name="Height"
-            stroke="hsl(var(--chart-2))"
-            connectNulls
-          />
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="headCircumference"
-            name="Head"
-            stroke="hsl(var(--chart-3))"
-            connectNulls
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Growth Chart</CardTitle>
+        <CardDescription>Track your child's weight over time</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={growthData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis
+                label={{ value: "Weight (kg)", angle: -90, position: "insideLeft" }}
+                domain={["dataMin - 0.5", "dataMax + 0.5"]}
+              />
+              <Tooltip formatter={(value) => [`${value} kg`, "Weight"]} labelFormatter={(label) => `Date: ${label}`} />
+              <Line
+                type="monotone"
+                dataKey="weight"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
-

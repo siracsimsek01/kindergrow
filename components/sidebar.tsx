@@ -124,8 +124,8 @@ export function Sidebar({ className }: { className?: string }) {
         <div className="flex h-14 items-center justify-between border-b border-border px-4">
           {isOpen ? (
             <Link href="/dashboard" className="flex items-center font-semibold">
-              <div className="relative w-[32px] h-[32px]">
-                <Image src="/logo.png" alt="KinderGrow Logo" fill className="object-contain" priority />
+              <div className="relative">
+                <Image src="/logo.png" alt="KinderGrow Logo" width={50} height={50}  className="object-contain" priority />
               </div>
               <span className="text-xl ml-2">KinderGrow</span>
             </Link>

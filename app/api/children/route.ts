@@ -1,59 +1,66 @@
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import connectToDatabase from "@/lib/mongodb"
+import { prisma } from "@/lib/db"
 
 export async function GET() {
   try {
+    // Get the authenticated user from Clerk
     const { userId } = await auth()
+
     if (!userId) {
+      console.log("Unauthorized access attempt to /api/children")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { db } = await connectToDatabase()
+    console.log(`Fetching children for user: ${userId}`)
 
-    const children = await db
-      .collection("children")
-      .find({ parentId: `user_${userId}` })
-      .toArray()
+    // Get children for user
+    const children = await prisma.child.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    })
 
-    console.log(`Fetched ${children.length} children for user ${userId}`)
+    console.log(`Found ${children.length} children for user ${userId}`)
     return NextResponse.json(children)
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching children:", error)
-    return NextResponse.json({ error: "Failed to fetch children" }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
 export async function POST(request: Request) {
   try {
+    // Get the authenticated user from Clerk
     const { userId } = await auth()
+
     if (!userId) {
+      console.log("Unauthorized access attempt to POST /api/children")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { db } = await connectToDatabase()
+    // Parse request body
+    const body = await request.json()
+    console.log(`Creating child for user ${userId}:`, body)
 
-    const data = await request.json()
-    const now = new Date().toISOString()
-
-    const childData = {
-      id: `child_${Math.random().toString(36).substr(2, 9)}`,
-      parentId: `user_${userId}`,
-      name: data.name,
-      dateOfBirth: data.dateOfBirth,
-      sex: data.sex,
-      photoUrl: data.photoUrl || null,
-      createdAt: now,
-      updatedAt: now,
+    // Validate required fields
+    if (!body.name || !body.birthDate || !body.gender) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    console.log("Adding child via API:", childData)
-    const result = await db.collection("children").insertOne(childData)
-    console.log("Child added, result:", result)
+    // Create child
+    const child = await prisma.child.create({
+      data: {
+        name: body.name,
+        birthDate: new Date(body.birthDate),
+        gender: body.gender,
+        userId,
+      },
+    })
 
-    return NextResponse.json({ ...childData, _id: result.insertedId })
-  } catch (error) {
-    console.error("Error adding child:", error)
-    return NextResponse.json({ error: "Failed to add child" }, { status: 500 })
+    console.log(`Child created successfully:`, child)
+    return NextResponse.json(child)
+  } catch (error: any) {
+    console.error("Error creating child:", error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

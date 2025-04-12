@@ -49,7 +49,7 @@ export default function UserProfilePage() {
               <h3 className="text-xl font-medium">{user.fullName || user.username}</h3>
               <p className="text-sm text-muted-foreground">{user.primaryEmailAddress?.emailAddress}</p>
             </div>
-            <Button variant="outline" className="w-full" onClick={() => window.open(user.profileUrl, "_blank")}>
+            <Button variant="outline" className="w-full" onClick={() => window.open("https://accounts.clerk.dev/user", "_blank")}>
               Edit Profile
             </Button>
           </CardContent>
@@ -90,7 +90,7 @@ export default function UserProfilePage() {
                   <Button
                     variant="link"
                     className="px-0 text-sm"
-                    onClick={() => window.open(user.profileUrl, "_blank")}
+                    onClick={() => window.open("https://accounts.clerk.dev/user", "_blank")}
                   >
                     Change password
                   </Button>
@@ -102,7 +102,7 @@ export default function UserProfilePage() {
                   <Button
                     variant="link"
                     className="px-0 text-sm"
-                    onClick={() => window.open(user.profileUrl, "_blank")}
+                    onClick={() => window.open("https://accounts.clerk.dev/user", "_blank")}
                   >
                     Enable 2FA
                   </Button>

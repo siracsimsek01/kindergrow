@@ -2,25 +2,34 @@
 
 import { auth } from "@clerk/nextjs/server"
 import { revalidatePath } from "next/cache"
-import connectToDatabase from "@/lib/mongodb"
-import { ObjectId } from "mongodb"
+import { prisma } from "@/lib/db"
 
 export async function getDiaperEntries(childId: string) {
   try {
     const { userId } = await auth()
     if (!userId) throw new Error("Unauthorized")
 
-    const { db } = await connectToDatabase()
-
-    const entries = await db
-      .collection("events")
-      .find({
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: {
+        id: childId,
         userId,
+      },
+    })
+
+    if (!child) {
+      throw new Error("Child not found or not authorized")
+    }
+
+    const entries = await prisma.event.findMany({
+      where: {
         childId,
         eventType: "diaper",
-      })
-      .sort({ startTime: -1 })
-      .toArray()
+      },
+      orderBy: {
+        timestamp: "desc",
+      },
+    })
 
     return entries
   } catch (error) {
@@ -34,31 +43,68 @@ export async function getDiaperStats(childId: string) {
     const { userId } = await auth()
     if (!userId) throw new Error("Unauthorized")
 
-    const { db } = await connectToDatabase()
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: {
+        id: childId,
+        userId,
+      },
+    })
+
+    if (!child) {
+      throw new Error("Child not found or not authorized")
+    }
 
     // Get today's date at midnight
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
     // Get today's entries
-    const todayEntries = await db
-      .collection("events")
-      .find({
-        userId,
+    const todayEntries = await prisma.event.findMany({
+      where: {
         childId,
         eventType: "diaper",
-        startTime: { $gte: today },
-      })
-      .toArray()
+        timestamp: {
+          gte: today,
+        },
+      },
+    })
+
+    // Define the type for diaper details
+    interface DiaperDetails {
+      type?: string;
+      consistency?: string;
+      color?: string;
+    }
+
+    // Process entries to extract diaper-specific data
+    const processedEntries = todayEntries.map((event) => {
+      let details: DiaperDetails = {}
+      try {
+        details = JSON.parse(event.details || "{}") as DiaperDetails
+      } catch (e) {
+        console.error("Error parsing diaper details:", e)
+      }
+
+      return {
+        ...event,
+        data: details,
+      }
+    })
 
     // Count by type
-    const wetCount = todayEntries.filter((entry) => entry.data.type === "wet").length
-    const dirtyCount = todayEntries.filter((entry) => entry.data.type === "dirty").length
-    const mixedCount = todayEntries.filter((entry) => entry.data.type === "mixed").length
+    const wetCount = processedEntries.filter((entry) => entry.data.type === "wet").length
+    const dirtyCount = processedEntries.filter((entry) => entry.data.type === "dirty").length
+    const mixedCount = processedEntries.filter((entry) => entry.data.type === "mixed").length
 
     // Get last change time
     const lastChange =
-      todayEntries.length > 0 ? new Date(Math.max(...todayEntries.map((e) => new Date(e.startTime).getTime()))) : null
+      todayEntries.length > 0
+        ? todayEntries.reduce(
+            (latest, entry) => (entry.timestamp > latest ? entry.timestamp : latest),
+            todayEntries[0].timestamp,
+          )
+        : null
 
     return {
       today: {
@@ -91,38 +137,38 @@ export async function addDiaperEntry(formData: FormData) {
       throw new Error("Missing required fields")
     }
 
-    const { db } = await connectToDatabase()
-
     // Verify child belongs to user
-    const child = await db.collection("children").findOne({
-      _id: new ObjectId(childId),
-      userId,
+    const child = await prisma.child.findFirst({
+      where: {
+        id: childId,
+        userId,
+      },
     })
 
     if (!child) {
-      throw new Error("Child not found")
+      throw new Error("Child not found or not authorized")
     }
 
-    const entry = {
-      userId,
-      childId,
-      eventType: "diaper",
-      startTime: new Date(time),
+    const timestamp = new Date(time)
+
+    // Create diaper event
+    const event = await prisma.event.create({
       data: {
-        type,
-        consistency,
-        color,
+        childId,
+        eventType: "diaper",
+        timestamp,
+        details: JSON.stringify({
+          type,
+          consistency,
+          color,
+        }),
+        notes,
       },
-      notes,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    const result = await db.collection("events").insertOne(entry)
+    })
 
     revalidatePath("/dashboard/diaper")
 
-    return { success: true, _id: result.insertedId }
+    return { success: true, id: event.id }
   } catch (error) {
     console.error("Error adding diaper entry:", error)
     throw error
@@ -134,17 +180,25 @@ export async function deleteDiaperEntry(id: string) {
     const { userId } = await auth()
     if (!userId) throw new Error("Unauthorized")
 
-    const { db } = await connectToDatabase()
-
-    const result = await db.collection("events").deleteOne({
-      _id: new ObjectId(id),
-      userId,
-      eventType: "diaper",
+    // First, get the event to verify ownership
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: { child: true },
     })
 
-    if (result.deletedCount === 0) {
-      throw new Error("Entry not found or not authorized to delete")
+    if (!event) {
+      throw new Error("Entry not found")
     }
+
+    // Verify child belongs to user
+    if (event.child.userId !== userId) {
+      throw new Error("Not authorized to delete this entry")
+    }
+
+    // Delete the event
+    await prisma.event.delete({
+      where: { id },
+    })
 
     revalidatePath("/dashboard/diaper")
 
@@ -154,4 +208,3 @@ export async function deleteDiaperEntry(id: string) {
     throw error
   }
 }
-

@@ -1,43 +1,49 @@
-"use client"
+"use client";
 
-import { SignIn } from "@clerk/nextjs"
-import Image from "next/image"
-import { useSearchParams, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { UserIcon } from "lucide-react"
+import { SignIn } from "@clerk/nextjs";
+import Image from "next/image";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import { UserIcon } from "lucide-react";
 
 interface LastUser {
-  id: string
-  name: string
-  email?: string
-  imageUrl?: string
-  lastSignIn?: string
-  fullName?: string
+  id: string;
+  name: string;
+  email?: string;
+  imageUrl?: string;
+  lastSignIn?: string;
+  fullName?: string;
 }
 
 export default function SignInPage() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const redirectUrl = searchParams?.get("redirect_url") || "/dashboard"
-  const [lastUser, setLastUser] = useState<LastUser | null>(null)
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const redirectUrl = searchParams?.get("redirect_url") || "/dashboard";
+  const [lastUser, setLastUser] = useState<LastUser | null>(null);
 
   useEffect(() => {
     // Check for last signed in user in localStorage
-    const storedUser = localStorage.getItem("lastSignedInUser")
+    const storedUser = localStorage.getItem("lastSignedInUser");
     if (storedUser) {
       try {
-        setLastUser(JSON.parse(storedUser))
+        setLastUser(JSON.parse(storedUser));
       } catch (e) {
-        console.error("Error parsing stored user:", e)
+        console.error("Error parsing stored user:", e);
       }
     }
-  }, [])
+  }, []);
 
   const handleContinueAsUser = () => {
-    router.push("/dashboard")
-  }
+    router.push("/dashboard");
+  };
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -53,12 +59,21 @@ export default function SignInPage() {
         <div className="relative z-10 max-w-md text-center">
           <div className="flex justify-center mb-6">
             <div className="relative w-[120px] h-[120px]">
-              <Image src="/logo.png" alt="KinderGrow Logo" fill className="object-contain" priority />
+              <Image
+                src="/logo.png"
+                alt="KinderGrow Logo"
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-[#cbd5e1] mb-4">Welcome to KinderGrow</h1>
+          <h1 className="text-4xl font-bold text-[#cbd5e1] mb-4">
+            Welcome to KinderGrow
+          </h1>
           <p className="text-lg text-[#94a3b8] mb-6">
-            Track your little one's growth, sleep, feeding, and more in one beautiful app.
+            Track your little one's growth, sleep, feeding, and more in one
+            beautiful app.
           </p>
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-[#334155]/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
@@ -83,12 +98,39 @@ export default function SignInPage() {
 
       {/* Right side - Sign in form */}
       <div className="flex-1 bg-[#1e293b] p-8 flex items-center justify-center">
-        <div className="w-full max-w-md">
-          {/* "Continue as" card for returning users */}
+        <div className="w-full max-w-md flex flex-col">
+          <SignIn
+            appearance={{
+              elements: {
+                formButtonPrimary:
+                  "bg-[#2563eb] hover:bg-[#1d4ed8] text-sm normal-case",
+                card: "bg-[#1e293b] shadow-none border-[#334155]",
+                headerTitle: "text-[#cbd5e1]",
+                headerSubtitle: "text-[#94a3b8]",
+                socialButtonsBlockButton:
+                  "border-[#475569] text-[#94a3b8] bg-[#334155]",
+                formFieldLabel: "text-[#cbd5e1]",
+                formFieldInput:
+                  "bg-[#334155] border-[#475569] text-[#cbd5e1] focus:border-[#2563eb] focus:ring-[#2563eb]",
+                footerActionText: "text-[#94a3b8]",
+                footerActionLink: "text-[#2563eb] hover:text-[#598EF3]",
+                logoImage: "h-16 w-16",
+                footer: "bg-[#1e293b] border-t-0 text-[#94a3b8]",
+              },
+            }}
+            routing="path"
+            path="/sign-in"
+            signUpUrl="/sign-up"
+            redirectUrl={redirectUrl}
+          />
+
+          {/* "Continue as" card for returning users - moved to bottom */}
           {lastUser && (
-            <Card className="mb-6 bg-[#334155] border-[#475569] text-[#cbd5e1]">
+            <Card className="mt-6 bg-[#1e293b] border-[#334155] text-[#cbd5e1] flex flex-col gap-3 w-[400px]">
               <CardHeader className="pb-2">
-                <CardTitle className="text-[#cbd5e1] text-lg">Continue as</CardTitle>
+                <CardTitle className="text-[#cbd5e1] text-lg">
+                  Continue as
+                </CardTitle>
               </CardHeader>
               <CardContent className="pb-2">
                 <div className="flex items-center gap-3">
@@ -102,48 +144,32 @@ export default function SignInPage() {
                       />
                     </div>
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-[#475569] flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-[#334155] flex items-center justify-center">
                       <UserIcon className="w-5 h-5 text-[#cbd5e1]" />
                     </div>
                   )}
                   <div>
-                    <p className="text-[#cbd5e1] font-medium">{lastUser.fullName || lastUser.name}</p>
-                    {lastUser.email && <p className="text-[#94a3b8] text-sm">{lastUser.email}</p>}
+                    <p className="text-[#cbd5e1] font-medium">
+                      {lastUser.fullName || lastUser.name}
+                    </p>
+                    {lastUser.email && (
+                      <p className="text-[#94a3b8] text-sm">{lastUser.email}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
-              <CardFooter>
-                <Button className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white" onClick={handleContinueAsUser}>
+              <CardFooter className="bg-[#1e293b]">
+                <Button
+                  className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white"
+                  onClick={handleContinueAsUser}
+                >
                   Continue
                 </Button>
               </CardFooter>
             </Card>
           )}
-
-          <SignIn
-            appearance={{
-              elements: {
-                formButtonPrimary: "bg-[#2563eb] hover:bg-[#1d4ed8] text-sm normal-case",
-                card: "bg-[#1e293b] shadow-none border-[#334155]",
-                headerTitle: "text-[#cbd5e1]",
-                headerSubtitle: "text-[#94a3b8]",
-                socialButtonsBlockButton: "border-[#475569] text-[#94a3b8] bg-[#334155]",
-                formFieldLabel: "text-[#cbd5e1]",
-                formFieldInput:
-                  "bg-[#334155] border-[#475569] text-[#cbd5e1] focus:border-[#2563eb] focus:ring-[#2563eb]",
-                footerActionText: "text-[#94a3b8]",
-                footerActionLink: "text-[#2563eb] hover:text-[#598EF3]",
-                logoImage: "h-16 w-16",
-              },
-            }}
-            routing="path"
-            path="/sign-in"
-            signUpUrl="/sign-up"
-            redirectUrl={redirectUrl}
-          />
         </div>
       </div>
     </div>
-  )
+  );
 }
-

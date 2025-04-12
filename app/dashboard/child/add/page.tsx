@@ -33,7 +33,7 @@ const formSchema = z.object({
 export default function AddChildPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { addChild, refreshChildren } = useChildContext()
+  const { addChild, getChildren } = useChildContext()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -60,7 +60,7 @@ export default function AddChildPage() {
       })
 
       // Refresh children data
-      await refreshChildren()
+      await getChildren()
 
       router.push("/dashboard")
     } catch (error) {

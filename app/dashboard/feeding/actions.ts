@@ -2,27 +2,62 @@
 
 import { auth } from "@clerk/nextjs/server"
 import { revalidatePath } from "next/cache"
-import connectToDatabase from "@/lib/mongodb"
-import { ObjectId } from "mongodb"
+import { prisma } from "@/lib/db"
 
 export async function getFeedingEntries(childId: string) {
   try {
     const { userId } = await auth()
     if (!userId) throw new Error("Unauthorized")
 
-    const { db } = await connectToDatabase()
-
-    const entries = await db
-      .collection("events")
-      .find({
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: {
+        id: childId,
         userId,
+      },
+    })
+
+    if (!child) {
+      throw new Error("Child not found or not authorized")
+    }
+
+    const entries = await prisma.event.findMany({
+      where: {
         childId,
         eventType: "feeding",
-      })
-      .sort({ startTime: -1 })
-      .toArray()
+      },
+      orderBy: {
+        timestamp: "desc",
+      },
+    })
 
-    return entries
+    // Process events to extract feeding-specific data
+    return entries.map((event : any) => {
+      interface FeedingDetails {
+        type?: string;
+        amount?: number;
+        notes?: string;
+      }
+      
+      let details: FeedingDetails = {}
+      try {
+        details = JSON.parse(event.details || "{}") as FeedingDetails
+      } catch (e) {
+        console.error("Error parsing feeding details:", e)
+      }
+
+      return {
+        id: event.id,
+        childId: event.childId,
+        timestamp: event.timestamp,
+        type: details.type || "breast",
+        amount: event.value || details.amount,
+        unit: event.unit,
+        notes: event.notes || details.notes,
+        createdAt: event.createdAt,
+        updatedAt: event.updatedAt,
+      }
+    })
   } catch (error) {
     console.error("Error fetching feeding entries:", error)
     throw error
@@ -34,71 +69,86 @@ export async function getFeedingStats(childId: string) {
     const { userId } = await auth()
     if (!userId) throw new Error("Unauthorized")
 
-    const { db } = await connectToDatabase()
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: {
+        id: childId,
+        userId,
+      },
+    })
+
+    if (!child) {
+      throw new Error("Child not found or not authorized")
+    }
 
     // Get today's date at midnight
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
     // Get today's entries
-    const todayEntries = await db
-      .collection("events")
-      .find({
-        userId,
+    const todayEntries = await prisma.event.findMany({
+      where: {
         childId,
         eventType: "feeding",
-        startTime: { $gte: today },
-      })
-      .toArray()
+        timestamp: {
+          gte: today,
+        },
+      },
+    })
 
-    // Calculate stats
-    const totalFeedings = todayEntries.length
+    // Process entries to extract feeding-specific data
+    interface FeedingDetails {
+      type?: string;
+      amount?: number;
+      notes?: string;
+    }
 
-    // Calculate total volume (for formula/breast milk)
-    let totalVolume = 0
-    let volumeCount = 0
+    const processedEntries = todayEntries.map((event: any) => {
+      let details: FeedingDetails = {}
+      try {
+        details = JSON.parse(event.details || "{}") as FeedingDetails
+      } catch (e) {
+        console.error("Error parsing feeding details:", e)
+      }
 
-    todayEntries.forEach((entry) => {
-      if ((entry.data.type === "formula" || entry.data.type === "breast_milk") && entry.data.amount) {
-        totalVolume += Number(entry.data.amount)
-        volumeCount++
+      return {
+        ...event,
+        type: details.type || "breast",
+        amount: event.value || details.amount,
       }
     })
 
-    const averageVolume = volumeCount > 0 ? Math.round(totalVolume / volumeCount) : 0
+    // Count by type
+    const breastCount = processedEntries.filter((entry) => entry.type === "breast").length
+    const bottleCount = processedEntries.filter((entry) => entry.type === "bottle").length
+    const formulaCount = processedEntries.filter((entry) => entry.type === "formula").length
+    const solidCount = processedEntries.filter((entry) => entry.type === "solid").length
+    const snackCount = processedEntries.filter((entry) => entry.type === "snack").length
+
+    // Calculate total amount (only for bottle and formula)
+    const totalAmount = processedEntries
+      .filter((entry) => entry.type === "bottle" || entry.type === "formula")
+      .reduce((sum, entry) => sum + (entry.amount || 0), 0)
 
     // Get last feeding time
     const lastFeeding =
-      todayEntries.length > 0 ? new Date(Math.max(...todayEntries.map((e) => new Date(e.startTime).getTime()))) : null
-
-    // Calculate average interval between feedings
-    let totalInterval = 0
-    let intervalCount = 0
-
-    if (todayEntries.length > 1) {
-      const sortedEntries = [...todayEntries].sort(
-        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
-      )
-
-      for (let i = 1; i < sortedEntries.length; i++) {
-        const interval =
-          new Date(sortedEntries[i].startTime).getTime() - new Date(sortedEntries[i - 1].startTime).getTime()
-        totalInterval += interval
-        intervalCount++
-      }
-    }
-
-    const averageInterval = intervalCount > 0 ? totalInterval / intervalCount : 0
-    const intervalHours = Math.floor(averageInterval / (1000 * 60 * 60))
-    const intervalMinutes = Math.floor((averageInterval % (1000 * 60 * 60)) / (1000 * 60))
+      todayEntries.length > 0
+        ? todayEntries.reduce(
+            (latest, entry) => (entry.timestamp > latest ? entry.timestamp : latest),
+            todayEntries[0].timestamp,
+          )
+        : null
 
     return {
       today: {
-        totalFeedings,
-        totalVolume,
-        averageVolume,
+        total: todayEntries.length,
+        breast: breastCount,
+        bottle: bottleCount,
+        formula: formulaCount,
+        solid: solidCount,
+        snack: snackCount,
+        totalAmount,
         lastFeeding,
-        feedingInterval: `${intervalHours}h ${intervalMinutes}m`,
       },
     }
   } catch (error) {
@@ -113,55 +163,151 @@ export async function addFeedingEntry(formData: FormData) {
     if (!userId) throw new Error("Unauthorized")
 
     const childId = formData.get("childId") as string
-    const time = formData.get("time") as string
     const type = formData.get("type") as string
+    const time = formData.get("time") as string
     const amount = formData.get("amount") as string
-    const unit = formData.get("unit") as string
-    const foodDescription = formData.get("foodDescription") as string
-    const portionConsumed = formData.get("portionConsumed") as string
-    const notes = formData.get("notes") as string
+    const notes = (formData.get("notes") as string) || undefined
 
-    if (!childId || !time || !type) {
+    if (!childId || !type || !time) {
       throw new Error("Missing required fields")
     }
 
-    const { db } = await connectToDatabase()
-
     // Verify child belongs to user
-    const child = await db.collection("children").findOne({
-      _id: new ObjectId(childId),
-      userId,
+    const child = await prisma.child.findFirst({
+      where: {
+        id: childId,
+        userId,
+      },
     })
 
     if (!child) {
-      throw new Error("Child not found")
+      throw new Error("Child not found or not authorized")
     }
 
-    const entry = {
-      userId,
-      childId,
-      eventType: "feeding",
-      startTime: new Date(time),
+    const timestamp = new Date(time)
+    const amountValue = amount ? Number.parseFloat(amount) : null
+
+    // Create feeding event
+    const event = await prisma.event.create({
       data: {
-        type,
-        amount: amount ? Number(amount) : undefined,
-        unit,
-        foodDescription,
-        portionConsumed,
+        childId,
+        eventType: "feeding",
+        timestamp,
+        details: JSON.stringify({
+          type,
+          amount: amountValue,
+          notes,
+        }),
+        value: amountValue,
+        unit: type === "breast" ? "minutes" : "oz",
+        notes,
       },
-      notes,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    const result = await db.collection("events").insertOne(entry)
+    })
 
     revalidatePath("/dashboard/feeding")
 
-    return { success: true, _id: result.insertedId }
+    return { success: true, id: event.id }
   } catch (error) {
     console.error("Error adding feeding entry:", error)
     throw error
   }
 }
 
+export async function updateFeedingEntry(id: string, formData: FormData) {
+  try {
+    const { userId } = await auth()
+    if (!userId) throw new Error("Unauthorized")
+
+    const type = formData.get("type") as string
+    const time = formData.get("time") as string
+    const amount = formData.get("amount") as string
+    const notes = (formData.get("notes") as string) || undefined
+
+    // Get the event to verify ownership
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: { child: true },
+    })
+
+    if (!event) {
+      throw new Error("Feeding entry not found")
+    }
+
+    // Verify child belongs to user
+    if (event.child.userId !== userId) {
+      throw new Error("Not authorized to update this entry")
+    }
+
+    const timestamp = time ? new Date(time) : undefined
+    const amountValue = amount ? Number.parseFloat(amount) : null
+
+    // Parse existing details
+    let details = {}
+    try {
+      details = JSON.parse(event.details || "{}")
+    } catch (e) {
+      console.error("Error parsing feeding details:", e)
+    }
+
+    // Update details
+    const updatedDetails = {
+      ...details,
+      ...(type && { type }),
+      ...(amountValue !== null && { amount: amountValue }),
+      ...(notes !== undefined && { notes }),
+    }
+
+    // Update event
+    await prisma.event.update({
+      where: { id },
+      data: {
+        ...(timestamp && { timestamp }),
+        details: JSON.stringify(updatedDetails),
+        ...(amountValue !== null && { value: amountValue }),
+        ...(type && { unit: type === "breast" ? "minutes" : "oz" }),
+        ...(notes !== undefined && { notes }),
+      },
+    })
+
+    revalidatePath("/dashboard/feeding")
+
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating feeding entry:", error)
+    throw error
+  }
+}
+
+export async function deleteFeedingEntry(id: string) {
+  try {
+    const { userId } = await auth()
+    if (!userId) throw new Error("Unauthorized")
+
+    // Get the event to verify ownership
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: { child: true },
+    })
+
+    if (!event) {
+      throw new Error("Feeding entry not found")
+    }
+
+    // Verify child belongs to user
+    if (event.child.userId !== userId) {
+      throw new Error("Not authorized to delete this entry")
+    }
+
+    // Delete the event
+    await prisma.event.delete({
+      where: { id },
+    })
+
+    revalidatePath("/dashboard/feeding")
+
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting feeding entry:", error)
+    throw error
+  }
+}

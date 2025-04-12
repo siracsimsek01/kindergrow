@@ -8,7 +8,11 @@ const nextConfig = {
     experimental: {
       workerThreads: false,
       cpus: 1
-    }
+    },
+    images: {
+      domains: ['img.clerk.com'],
+    },
+    
   }
 
   const withBundleAnalyzer = require('@next/bundle-analyzer')({

@@ -43,8 +43,6 @@ export default function DashboardPage() {
     setIsAddChildModalOpen,
     setIsAddEventModalOpen,
     setSelectedChild,
-    enableAutoRefresh,
-    autoRefreshEnabled,
     isRefreshing: isContextRefreshing,
   } = useChildContext()
 
@@ -80,14 +78,6 @@ export default function DashboardPage() {
   }, [])
 
   // Auto-refresh setup
-  useEffect(() => {
-    // Auto-refresh is disabled to prevent loading screen issues
-    enableAutoRefresh(false)
-
-    return () => {
-      enableAutoRefresh(false)
-    }
-  }, [enableAutoRefresh])
 
   // Fetch dashboard stats
   const fetchStats = useCallback(async () => {

@@ -1,7 +1,7 @@
 import { Webhook } from "svix"
 import { headers } from "next/headers"
 import type { WebhookEvent } from "@clerk/nextjs/server"
-import  connectToDatabase  from "@/lib/mongodb"
+import { prisma } from "@/lib/db"
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
   // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response("Error occured -- no svix headers", {
+    return new Response("Error occurred -- no svix headers", {
       status: 400,
     })
   }
@@ -41,12 +41,10 @@ export async function POST(req: Request) {
     }) as WebhookEvent
   } catch (err) {
     console.error("Error verifying webhook:", err)
-    return new Response("Error occured", {
+    return new Response("Error occurred", {
       status: 400,
     })
   }
-
-  const { db } = await connectToDatabase()
 
   // Handle the webhook
   const eventType = evt.type
@@ -54,23 +52,37 @@ export async function POST(req: Request) {
     const { id, email_addresses, first_name, last_name } = evt.data
     const email = email_addresses[0]?.email_address
 
-    // Upsert the user in your database
-    await db.collection("users").updateOne(
-      { clerkId: id },
-      {
-        $set: {
-          email,
+    if (!email) {
+      console.error("No email found for user", id)
+      return new Response("No email found for user", { status: 400 })
+    }
+
+    try {
+      // Upsert the user in your database using Prisma
+      await prisma.user.upsert({
+        where: {
+          id: id as string,
+        },
+        update: {
+          email: email,
           name: `${first_name || ""} ${last_name || ""}`.trim(),
           updatedAt: new Date(),
         },
-        $setOnInsert: {
+        create: {
+          id: id as string,
+          email: email,
+          name: `${first_name || ""} ${last_name || ""}`.trim(),
           createdAt: new Date(),
+          updatedAt: new Date(),
         },
-      },
-      { upsert: true },
-    )
+      })
+
+      console.log(`User ${id} successfully ${eventType === "user.created" ? "created" : "updated"}`)
+    } catch (error) {
+      console.error("Error upserting user in database:", error)
+      return new Response("Error updating user in database", { status: 500 })
+    }
   }
 
   return new Response("", { status: 200 })
 }
-

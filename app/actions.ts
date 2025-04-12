@@ -1,8 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import  connectToDatabase  from "@/lib/mongodb"
-import { ObjectId } from "mongodb"
+import { prisma } from "@/lib/db"
 
 export async function addEvent(data: {
   childId: string
@@ -14,34 +13,26 @@ export async function addEvent(data: {
   try {
     console.log("Adding event with data:", JSON.stringify(data))
 
-    const { db } = await connectToDatabase()
-
     // Validate required fields
     if (!data.childId) throw new Error("Child ID is required")
     if (!data.eventType) throw new Error("Event type is required")
     if (!data.startTime) throw new Error("Start time is required")
 
-    // Create the event object
-    const event = {
-      childId: data.childId,
-      eventType: data.eventType,
-      startTime: new Date(data.startTime),
-      endTime: data.endTime ? new Date(data.endTime) : undefined,
-      details: data.details || "",
-      createdAt: new Date(),
-    }
-
-    // Insert the event
-    const result = await db.collection("events").insertOne(event)
-
-    if (!result.acknowledged) {
-      throw new Error(`Failed to record ${data.eventType} session`)
-    }
+    // Create the event using Prisma
+    const result = await prisma.event.create({
+      data: {
+        childId: data.childId,
+        eventType: data.eventType,
+        timestamp: new Date(data.startTime), // Using timestamp field from Prisma schema
+        details: data.details || "",
+        // If you need to store endTime, consider adding it to your Event model or storing it in the details field
+      },
+    })
 
     // Revalidate the dashboard path to update the UI
     revalidatePath("/dashboard")
 
-    return { success: true, eventId: result.insertedId.toString() }
+    return { success: true, eventId: result.id }
   } catch (error: any) {
     console.error("Error adding event:", error)
     return { success: false, error: error.message }
@@ -50,26 +41,21 @@ export async function addEvent(data: {
 
 export async function updateEvent(id: string, data: any) {
   try {
-    const { db } = await connectToDatabase()
-
-    // Convert string ID to ObjectId
-    const objectId = new ObjectId(id)
-
     // Prepare update data
     const updateData: any = { ...data }
 
     // Convert date strings to Date objects
-    if (updateData.startTime) updateData.startTime = new Date(updateData.startTime)
-    if (updateData.endTime) updateData.endTime = new Date(updateData.endTime)
+    if (updateData.startTime) updateData.timestamp = new Date(updateData.startTime)
 
-    // Add updatedAt timestamp
-    updateData.updatedAt = new Date()
+    
+    delete updateData.startTime
+    delete updateData.endTime
 
-    const result = await db.collection("events").updateOne({ _id: objectId }, { $set: updateData })
-
-    if (result.matchedCount === 0) {
-      throw new Error("Event not found")
-    }
+    // Update the event using Prisma
+    const result = await prisma.event.update({
+      where: { id },
+      data: updateData,
+    })
 
     revalidatePath("/dashboard")
 
@@ -82,16 +68,10 @@ export async function updateEvent(id: string, data: any) {
 
 export async function deleteEvent(id: string) {
   try {
-    const { db } = await connectToDatabase()
-
-    // Convert string ID to ObjectId
-    const objectId = new ObjectId(id)
-
-    const result = await db.collection("events").deleteOne({ _id: objectId })
-
-    if (result.deletedCount === 0) {
-      throw new Error("Event not found")
-    }
+    // Delete the event using Prisma
+    await prisma.event.delete({
+      where: { id },
+    })
 
     revalidatePath("/dashboard")
 
@@ -107,23 +87,27 @@ export async function addChild(data: {
   dateOfBirth: string
   sex: string
   imageUrl?: string
+  userId: string // Add userId parameter to link the child to a user
 }) {
   try {
-    const { db } = await connectToDatabase()
-
-    const child = {
-      name: data.name,
-      dateOfBirth: new Date(data.dateOfBirth),
-      sex: data.sex,
-      imageUrl: data.imageUrl || null,
-      createdAt: new Date(),
-    }
-
-    const result = await db.collection("children").insertOne(child)
+    // Create the child using Prisma
+    const result = await prisma.child.create({
+      data: {
+        name: data.name,
+        birthDate: new Date(data.dateOfBirth),
+        gender: data.sex, // Note: using 'gender' field as per Prisma schema instead of 'sex'
+        // If you need to store imageUrl, consider adding it to your Child model
+        user: {
+          connect: {
+            id: data.userId
+          }
+        }
+      },
+    })
 
     revalidatePath("/dashboard")
 
-    return { success: true, childId: result.insertedId.toString() }
+    return { success: true, childId: result.id }
   } catch (error: any) {
     console.error("Error adding child:", error)
     return { success: false, error: error.message }
@@ -132,27 +116,26 @@ export async function addChild(data: {
 
 export async function updateChild(id: string, data: any) {
   try {
-    const { db } = await connectToDatabase()
-
-    // Convert string ID to ObjectId
-    const objectId = new ObjectId(id)
-
     // Prepare update data
     const updateData: any = { ...data }
 
     // Convert dateOfBirth string to Date object if present
     if (updateData.dateOfBirth) {
-      updateData.dateOfBirth = new Date(updateData.dateOfBirth)
+      updateData.birthDate = new Date(updateData.dateOfBirth)
+      delete updateData.dateOfBirth
     }
 
-    // Add updatedAt timestamp
-    updateData.updatedAt = new Date()
-
-    const result = await db.collection("children").updateOne({ _id: objectId }, { $set: updateData })
-
-    if (result.matchedCount === 0) {
-      throw new Error("Child not found")
+    // Convert sex to gender if present
+    if (updateData.sex) {
+      updateData.gender = updateData.sex
+      delete updateData.sex
     }
+
+    // Update the child using Prisma
+    await prisma.child.update({
+      where: { id },
+      data: updateData,
+    })
 
     revalidatePath("/dashboard")
 
@@ -165,20 +148,15 @@ export async function updateChild(id: string, data: any) {
 
 export async function deleteChild(id: string) {
   try {
-    const { db } = await connectToDatabase()
-
-    // Convert string ID to ObjectId
-    const objectId = new ObjectId(id)
+    // Delete all events associated with this child
+    await prisma.event.deleteMany({
+      where: { childId: id },
+    })
 
     // Delete the child
-    const result = await db.collection("children").deleteOne({ _id: objectId })
-
-    if (result.deletedCount === 0) {
-      throw new Error("Child not found")
-    }
-
-    // Delete all events associated with this child
-    await db.collection("events").deleteMany({ childId: id })
+    await prisma.child.delete({
+      where: { id },
+    })
 
     revalidatePath("/dashboard")
 
@@ -188,4 +166,3 @@ export async function deleteChild(id: string) {
     return { success: false, error: error.message }
   }
 }
-

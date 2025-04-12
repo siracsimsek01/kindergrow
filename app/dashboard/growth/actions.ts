@@ -1,70 +1,229 @@
-'use server'
+"use server"
 
-import { apiClient } from "@/lib/api-client";
-import { revalidatePath } from "next/cache";
+import { auth } from "@clerk/nextjs/server"
+import { revalidatePath } from "next/cache"
+import { prisma } from "@/lib/db"
 
-export async function getGrowthEntries(childId: string, startDate?: string, endDate?: string) {
+export async function getGrowthEntries(childId: string) {
   try {
-    let url = `/api/growth?childId=${childId}`;
-    
-    if (startDate) {
-      url += `&startDate=${startDate}`;
+    const { userId } = await auth()
+    if (!userId) throw new Error("Unauthorized")
+
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: {
+        id: childId,
+        userId,
+      },
+    })
+
+    if (!child) {
+      throw new Error("Child not found or not authorized")
     }
-    
-    if (endDate) {
-      url += `&endDate=${endDate}`;
+
+    const entries = await prisma.event.findMany({
+      where: {
+        childId,
+        eventType: "growth",
+      },
+      orderBy: {
+        timestamp: "desc",
+      },
+    })
+
+    // Process events to extract growth-specific data
+    return entries.map((event) => {
+      interface GrowthDetails {
+        weight?: number;
+        height?: number;
+        headCircumference?: number;
+        notes?: string;
+      }
+      
+      let details: GrowthDetails = {}
+      try {
+        details = JSON.parse(event.details || "{}") as GrowthDetails
+      } catch (e) {
+        console.error("Error parsing growth details:", e)
+      }
+
+      return {
+        id: event.id,
+        childId: event.childId,
+        timestamp: event.timestamp,
+        weight: event.value || details.weight,
+        height: details.height,
+        headCircumference: details.headCircumference,
+        unit: event.unit || "kg",
+        notes: event.notes || details.notes,
+        createdAt: event.createdAt,
+        updatedAt: event.updatedAt,
+      }
+    })
+  } catch (error) {
+    console.error("Error fetching growth entries:", error)
+    throw error
+  }
+}
+
+export async function addGrowthEntry(formData: FormData) {
+  try {
+    const { userId } = await auth()
+    if (!userId) throw new Error("Unauthorized")
+
+    const childId = formData.get("childId") as string
+    const weight = formData.get("weight") as string
+    const height = formData.get("height") as string
+    const headCircumference = formData.get("headCircumference") as string
+    const date = formData.get("date") as string
+    const notes = (formData.get("notes") as string) || undefined
+
+    if (!childId || !weight || !date) {
+      throw new Error("Missing required fields")
     }
-    
-    const response = await apiClient.get(url);
-    return response.data;
+
+    // Verify child belongs to user
+    const child = await prisma.child.findFirst({
+      where: {
+        id: childId,
+        userId,
+      },
+    })
+
+    if (!child) {
+      throw new Error("Child not found or not authorized")
+    }
+
+    const timestamp = new Date(date)
+    const weightValue = Number.parseFloat(weight)
+    const heightValue = height ? Number.parseFloat(height) : null
+    const headCircumferenceValue = headCircumference ? Number.parseFloat(headCircumference) : null
+
+    // Create growth event
+    const event = await prisma.event.create({
+      data: {
+        childId,
+        eventType: "growth",
+        timestamp,
+        details: JSON.stringify({
+          weight: weightValue,
+          height: heightValue,
+          headCircumference: headCircumferenceValue,
+          notes,
+        }),
+        value: weightValue,
+        unit: "kg",
+        notes,
+      },
+    })
+
+    revalidatePath("/dashboard/growth")
+
+    return { success: true, id: event.id }
   } catch (error) {
-    console.error("Error fetching growth entries:", error);
-    throw new Error("Failed to fetch growth entries");
+    console.error("Error adding growth entry:", error)
+    throw error
   }
 }
 
-export async function addGrowthEntry(data: any) {
+export async function updateGrowthEntry(id: string, formData: FormData) {
   try {
-    const response = await apiClient.post('/api/growth', data);
-    revalidatePath('/dashboard/growth');
-    revalidatePath('/dashboard');
-    return response.data;
+    const { userId } = await auth()
+    if (!userId) throw new Error("Unauthorized")
+
+    const weight = formData.get("weight") as string
+    const height = formData.get("height") as string
+    const headCircumference = formData.get("headCircumference") as string
+    const date = formData.get("date") as string
+    const notes = (formData.get("notes") as string) || undefined
+
+    // Get the event to verify ownership
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: { child: true },
+    })
+
+    if (!event) {
+      throw new Error("Growth entry not found")
+    }
+
+    // Verify child belongs to user
+    if (event.child.userId !== userId) {
+      throw new Error("Not authorized to update this entry")
+    }
+
+    const timestamp = date ? new Date(date) : undefined
+    const weightValue = weight ? Number.parseFloat(weight) : null
+    const heightValue = height ? Number.parseFloat(height) : null
+    const headCircumferenceValue = headCircumference ? Number.parseFloat(headCircumference) : null
+
+    // Parse existing details
+    let details = {}
+    try {
+      details = JSON.parse(event.details || "{}")
+    } catch (e) {
+      console.error("Error parsing growth details:", e)
+    }
+
+    // Update details
+    const updatedDetails = {
+      ...details,
+      ...(weightValue !== null && { weight: weightValue }),
+      ...(heightValue !== null && { height: heightValue }),
+      ...(headCircumferenceValue !== null && { headCircumference: headCircumferenceValue }),
+      ...(notes !== undefined && { notes }),
+    }
+
+    // Update event
+    await prisma.event.update({
+      where: { id },
+      data: {
+        ...(timestamp && { timestamp }),
+        details: JSON.stringify(updatedDetails),
+        ...(weightValue !== null && { value: weightValue }),
+        ...(notes !== undefined && { notes }),
+      },
+    })
+
+    revalidatePath("/dashboard/growth")
+
+    return { success: true }
   } catch (error) {
-    console.error("Error adding growth entry:", error);
-    throw new Error("Failed to add growth entry");
+    console.error("Error updating growth entry:", error)
+    throw error
   }
 }
 
-export async function updateGrowthEntry(growthId: string, data: any) {
+export async function deleteGrowthEntry(id: string) {
   try {
-    const response = await apiClient.put(`/api/growth/${growthId}`, data);
-    revalidatePath('/dashboard/growth');
-    revalidatePath('/dashboard');
-    return response.data;
-  } catch (error) {
-    console.error("Error updating growth entry:", error);
-    throw new Error("Failed to update growth entry");
-  }
-}
+    const { userId } = await auth()
+    if (!userId) throw new Error("Unauthorized")
 
-export async function deleteGrowthEntry(growthId: string) {
-  try {
-    const response = await apiClient.delete(`/api/growth/${growthId}`);
-    revalidatePath('/dashboard/growth');
-    revalidatePath('/dashboard');
-    return response.data;
-  } catch (error) {
-    console.error("Error deleting growth entry:", error);
-    throw new Error("Failed to delete growth entry");
-  }
-}
+    // Get the event to verify ownership
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: { child: true },
+    })
 
-export async function getGrowthPercentiles(childId: string, weight: number, height: number, ageInMonths: number, sex: string) {
-  try {
-    const response = await apiClient.get(`/api/growth/percentiles?childId=${childId}&weight=${weight}&height=${height}&ageInMonths=${ageInMonths}&sex=${sex}`);
-    return response.data;
+    if (!event) {
+      throw new Error("Growth entry not found")
+    }
+
+    // Verify child belongs to user
+    if (event.child.userId !== userId) {
+      throw new Error("Not authorized to delete this entry")
+    }
+
+    // Delete the event
+    await prisma.event.delete({
+      where: { id },
+    })
+
+    revalidatePath("/dashboard/growth")
+
+    return { success: true }
   } catch (error) {
-    console.error("Error fetching growth percentiles:", error);
-    throw new Error("Failed to fetch growth percentiles");
+    console.error("Error deleting growth entry:", error)
+    throw error
   }
 }
