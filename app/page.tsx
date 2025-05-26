@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Seo } from "@/components/seo"
+import Image from "next/image"
 
 export default function LandingPage() {
   return (
@@ -9,11 +10,9 @@ export default function LandingPage() {
       <div className="flex flex-col min-h-screen">
         <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container flex h-14 items-center">
-            <div className="flex items-center gap-2 font-bold">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary">
-                <span className="text-primary-foreground text-lg">K</span>
-              </div>
-              <span>KinderGrow</span>
+            <div className="flex items-center gap-1 font-bold">
+              <Image src="/images/logo.png" alt="Logo" width={50} height={50} className="rounded-full" />
+              <span className="text-lg">KinderGrow</span>
             </div>
             <div className="flex flex-1 items-center justify-end space-x-4">
               <nav className="flex items-center space-x-2">
@@ -44,12 +43,12 @@ export default function LandingPage() {
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                    <Link href="/register">
+                    <Link href="/sign-up">
                       <Button size="lg" className="w-full min-[400px]:w-auto">
                         Get Started
                       </Button>
                     </Link>
-                    <Link href="/dashboard">
+                    <Link href="/sign-in">
                       <Button size="lg" variant="outline" className="w-full min-[400px]:w-auto">
                         Try Demo
                       </Button>
@@ -57,12 +56,12 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-center">
-                  <img
-                    alt="KinderGrow Dashboard"
-                    className="aspect-video overflow-hidden rounded-xl object-cover object-center"
-                    height="310"
-                    src="/images/dashboard-preview.png"
-                    width="550"
+                  <Image
+                    src={"/images/header.png"}
+                    alt="Header Image"
+                    width={500}
+                    height={500}
+                    className="w-full max-w-[400px] rounded-lg shadow-lg"
                   />
                 </div>
               </div>
@@ -330,7 +329,7 @@ export default function LandingPage() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Link href="/register">
+                  <Link href="/sign-up">
                     <Button size="lg" variant="secondary" className="w-full min-[400px]:w-auto">
                       Get Started for Free
                     </Button>
@@ -344,11 +343,9 @@ export default function LandingPage() {
           <div className="container px-4 md:px-6">
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-4">
-                <div className="flex items-center gap-2 font-bold">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary">
-                    <span className="text-primary-foreground text-lg">K</span>
-                  </div>
-                  <span>KinderGrow</span>
+                <div className="flex items-center gap-1 font-bold">
+                  <Image src={"/logo.png"} alt="Logo" width={50} height={50} className="rounded-full" />
+                  <span className="text-lg">KinderGrow</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Track your child's development with ease. Get insights and recommendations for optimal growth.
@@ -479,4 +476,3 @@ export default function LandingPage() {
     </>
   )
 }
-

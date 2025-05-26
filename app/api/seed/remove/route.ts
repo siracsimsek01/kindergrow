@@ -5,7 +5,7 @@ import connectToDatabase from "@/lib/mongodb"
 export async function DELETE() {
   try {
     // Get the authenticated user from Clerk
-    const { userId } = auth()
+    const { userId } = await auth()
 
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

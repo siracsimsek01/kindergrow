@@ -13,11 +13,11 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { timestamp, weight, height, notes } = body
+    const { timestamp, temperature, notes } = body
 
-    if (!timestamp || (!weight && !height)) {
+    if (!timestamp || temperature === undefined) {
       return NextResponse.json(
-        { error: "Timestamp and at least one measurement are required" },
+        { error: "Timestamp and temperature are required" },
         { status: 400 }
       )
     }
@@ -34,20 +34,15 @@ export async function POST(
       return NextResponse.json({ error: "Child not found" }, { status: 404 })
     }
 
-    let details = ""
-    if (weight) details += `Weight: ${weight}kg`
-    if (height) details += `${details ? "\n" : ""}Height: ${height}cm`
-    if (notes) details += `${details ? "\n" : ""}Notes: ${notes}`
-
     const event = {
       id: `event_${Math.random().toString(36).substr(2, 9)}`,
       childId: params.childId,
       parentId: userId,
-      eventType: "growth",
+      eventType: "temperature",
       startTime: new Date(timestamp).toISOString(),
       endTime: new Date(timestamp).toISOString(),
-      details,
-      value: weight || null,
+      details: `Temperature: ${temperature}°C${notes ? `\nNotes: ${notes}` : ""}`,
+      value: temperature,
       timestamp: new Date(timestamp).toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -57,7 +52,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, event })
   } catch (error) {
-    console.error("Error adding growth event:", error)
+    console.error("Error adding temperature event:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

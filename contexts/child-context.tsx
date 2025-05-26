@@ -1,11 +1,12 @@
 "use client"
 
 import type React from "react"
-import { createContext, useState, useContext, useEffect, useCallback } from "react"
+import { createContext, useState, useContext, useEffect, useCallback, useRef } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/components/ui/use-toast"
 import { AddChildModal } from "@/components/add-child-modal"
 import { AddEventModal } from "@/components/add-event-modal"
+import { EventTypeSelectorModal } from "@/components/event-type-selector-modal"
 
 // Define the context type with expanded functionality
 interface ChildContextType {
@@ -17,6 +18,8 @@ interface ChildContextType {
   setIsAddEventModalOpen: (isOpen: boolean, eventType?: string) => void
   isAddChildModalOpen: boolean
   setIsAddChildModalOpen: (isOpen: boolean) => void
+  isEventTypeSelectorOpen: boolean
+  setIsEventTypeSelectorOpen: (isOpen: boolean) => void
   eventType: string | null
   lastUpdated: number
   triggerRefresh: () => void
@@ -35,6 +38,8 @@ const ChildContext = createContext<ChildContextType>({
   setIsAddEventModalOpen: () => {},
   isAddChildModalOpen: false,
   setIsAddChildModalOpen: () => {},
+  isEventTypeSelectorOpen: false,
+  setIsEventTypeSelectorOpen: () => {},
   eventType: null,
   lastUpdated: Date.now(),
   triggerRefresh: () => {},
@@ -55,21 +60,41 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
   const [isLoading, setIsLoading] = useState(true)
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false)
   const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false)
+  const [isEventTypeSelectorOpen, setIsEventTypeSelectorOpen] = useState(false)
   const [eventType, setEventType] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState(Date.now())
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false)
   const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null)
 
+  // Use refs to prevent stale closures in event handlers
+  const isAddChildModalOpenRef = useRef(isAddChildModalOpen)
+  const isAddEventModalOpenRef = useRef(isAddEventModalOpen)
+  const isEventTypeSelectorOpenRef = useRef(isEventTypeSelectorOpen)
+
+  // Update refs when state changes
+  useEffect(() => {
+    isAddChildModalOpenRef.current = isAddChildModalOpen
+  }, [isAddChildModalOpen])
+
+  useEffect(() => {
+    isAddEventModalOpenRef.current = isAddEventModalOpen
+  }, [isAddEventModalOpen])
+
+  useEffect(() => {
+    isEventTypeSelectorOpenRef.current = isEventTypeSelectorOpen
+  }, [isEventTypeSelectorOpen])
+
   // Function to handle opening/closing the add event modal
   const handleSetIsAddEventModalOpen = useCallback((isOpen: boolean, type?: string) => {
     if (isOpen && type) {
       setEventType(type)
-    }
-
-    setIsAddEventModalOpen(isOpen)
-
-    if (!isOpen) {
+      setIsAddEventModalOpen(true)
+    } else if (isOpen && !type) {
+      // If no type is provided, open the event type selector instead
+      setIsEventTypeSelectorOpen(true)
+    } else {
+      setIsAddEventModalOpen(false)
       // Only clear event type when closing the modal
       setTimeout(() => setEventType(null), 300)
     }
@@ -78,6 +103,11 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
   // Function to handle opening/closing the add child modal
   const handleSetIsAddChildModalOpen = useCallback((isOpen: boolean) => {
     setIsAddChildModalOpen(isOpen)
+  }, [])
+
+  // Function to handle opening/closing the event type selector
+  const handleSetIsEventTypeSelectorOpen = useCallback((isOpen: boolean) => {
+    setIsEventTypeSelectorOpen(isOpen)
   }, [])
 
   // Function to trigger a refresh of the data
@@ -196,6 +226,8 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
     setIsAddEventModalOpen: handleSetIsAddEventModalOpen,
     isAddChildModalOpen,
     setIsAddChildModalOpen: handleSetIsAddChildModalOpen,
+    isEventTypeSelectorOpen,
+    setIsEventTypeSelectorOpen: handleSetIsEventTypeSelectorOpen,
     eventType,
     lastUpdated,
     triggerRefresh,
@@ -224,18 +256,25 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
   return (
     <ChildContext.Provider value={contextValue}>
       {reactChildren}
+      {/* Use key to force re-render and prevent stale state */}
       <AddChildModal
+        key={`child-modal-${isAddChildModalOpen}`}
         open={isAddChildModalOpen}
         onOpenChange={handleSetIsAddChildModalOpen}
         onSuccess={handleChildAdded}
       />
       <AddEventModal
+        key={`event-modal-${isAddEventModalOpen}-${eventType}`}
         open={isAddEventModalOpen}
         onOpenChange={(isOpen) => handleSetIsAddEventModalOpen(isOpen)}
         eventType={eventType}
         onSuccess={handleEventAdded}
       />
+      <EventTypeSelectorModal
+        key={`event-selector-${isEventTypeSelectorOpen}`}
+        open={isEventTypeSelectorOpen}
+        onOpenChange={handleSetIsEventTypeSelectorOpen}
+      />
     </ChildContext.Provider>
   )
 }
-

@@ -56,8 +56,8 @@ const config = {
       },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 0.25rem)",
-        sm: "calc(var(--radius) - 0.5rem)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
         "accordion-down": {
@@ -68,35 +68,10 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        float: {
-          "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-20px)" },
-        },
-        "float-delay": {
-          "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-15px)" },
-        },
-        "float-slow": {
-          "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-25px)" },
-        },
-        "float-delay-slow": {
-          "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-10px)" },
-        },
-        spin: {
-          "0%": { transform: "rotate(0deg)" },
-          "100%": { transform: "rotate(360deg)" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        float: "float 6s ease-in-out infinite",
-        "float-delay": "float-delay 7s ease-in-out infinite",
-        "float-slow": "float-slow 8s ease-in-out infinite",
-        "float-delay-slow": "float-delay-slow 9s ease-in-out infinite",
-        spin: "spin 1s linear infinite",
       },
     },
   },
@@ -104,4 +79,3 @@ const config = {
 } satisfies Config
 
 export default config
-

@@ -36,6 +36,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserButton } from "@clerk/nextjs"
 import { useState, useEffect } from "react"
+import logo from '@/public/images/logo.png'
+
 
 export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname()
@@ -93,7 +95,7 @@ export function Sidebar({ className }: { className?: string }) {
           </Button>
           <Link href="/dashboard" className="flex items-center">
             <div className="relative w-[40px] h-[40px]">
-              <Image src="/logo.png" alt="KinderGrow Logo" fill className="object-contain" priority />
+              <Image src={logo} alt="KinderGrow Logo" fill className="object-contain" priority />
             </div>
             <span className="text-xl font-semibold">KinderGrow</span>
           </Link>
@@ -124,15 +126,15 @@ export function Sidebar({ className }: { className?: string }) {
         <div className="flex h-14 items-center justify-between border-b border-border px-4">
           {isOpen ? (
             <Link href="/dashboard" className="flex items-center font-semibold">
-              <div className="relative w-[32px] h-[32px]">
-                <Image src="/logo.png" alt="KinderGrow Logo" fill className="object-contain" priority />
+              <div className="relative">
+                <Image src={logo} alt="KinderGrow Logo" width={50} height={50} className="object-contain" priority />
               </div>
-              <span className="text-xl ml-2">KinderGrow</span>
+              <span className="text-xl ml-1">KinderGrow</span>
             </Link>
           ) : (
             <Link href="/dashboard" className="flex w-full items-center justify-center">
-              <div className="relative w-[32px] h-[32px]">
-                <Image src="/logo.png" alt="KinderGrow Logo" fill className="object-contain" priority />
+              <div className="relative">
+                <Image src="/logo.png" alt="KinderGrow Logo" width={50} height={50}  className="object-contain" priority />
               </div>
             </Link>
           )}

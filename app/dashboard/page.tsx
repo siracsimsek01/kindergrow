@@ -21,6 +21,7 @@ import { RecentActivities } from "@/components/recent-activities"
 import { ChildStatsSummary } from "@/components/child-stats-summary"
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
+import { DashboardSkeleton } from "./loading-skeleton"
 
 interface DashboardStats {
   totalChildren: number

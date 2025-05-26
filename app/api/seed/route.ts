@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import { seedSleepData } from "@/lib/seed-database"
+import { seedDatabase } from "@/lib/seed-database"
 
 export async function POST(request: Request) {
   try {
     // Get the authenticated user from Clerk
-    const { userId } = auth()
+    const { userId } = await auth()
 
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     }
 
     // Seed the database with sleep data
-    const count = await seedSleepData(childId)
+    const count = await seedDatabase()
 
     return NextResponse.json({ success: true, count })
   } catch (error: any) {

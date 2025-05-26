@@ -8,6 +8,7 @@ import { ChildProvider } from "@/contexts/child-context"
 import { RemoveSeededData } from "@/components/remove-seeded-data"
 import { StoreUser } from "@/components/store-user"
 import { Toaster } from "@/components/ui/toaster"
+import { AddEventModal } from "@/components/add-event-modal"
 
 export const metadata: Metadata = {
   title: "Dashboard | KinderGrow",
@@ -38,8 +39,8 @@ export default function DashboardLayout({
           </div>
         </div>
       </SidebarProvider>
+      <AddEventModal />
       <Toaster />
     </ChildProvider>
   )
 }
-

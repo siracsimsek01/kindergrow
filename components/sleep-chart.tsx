@@ -48,7 +48,7 @@ export const SleepChart: React.FC<SleepChartProps> = ({ data, selectedChild }) =
             <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
             <Bar
               dataKey="hours"
-              fill="hsl(var(--primary))"
+              fill="hsl(var(--secondary))"
               radius={[4, 4, 0, 0]}
               name="Sleep Duration (hours)"
               isAnimationActive={true}
