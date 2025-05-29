@@ -1,30 +1,34 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import connectToDatabase from "@/lib/mongodb"
+import clientPromise from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 import { generateReport } from "@/lib/reportGenerator"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { reportType, startDate, endDate, childId } = await request.json()
+    const { reportType, startDate, endDate } = await request.json()
+    const params = await context.params;
+    const childId = params.id;
 
     if (!childId) {
       return NextResponse.json({ error: "Missing childId" }, { status: 400 })
     }
 
-    const { db } = await connectToDatabase()
+    const { client } = await clientPromise();
+    const db = client.db(process.env.MONGO_DB);
 
     console.log(`Generating ${reportType} report from ${startDate} to ${endDate} for child ${childId}`)
 
-    // Get child name
+    // Verify child belongs to user
     const child = await db.collection("children").findOne({
-      id: childId,
-      parentId: `user_${userId}`,
-    })
+      _id: new ObjectId(childId),
+      parentId: userId
+    });
 
     if (!child) {
       return NextResponse.json({ error: "Child not found" }, { status: 404 })
@@ -35,12 +39,13 @@ export async function POST(request: Request) {
       .collection("events")
       .find({
         childId,
-        parentId: `user_${userId}`,
         eventType: reportType,
-        timestamp: {
-          $gte: new Date(startDate).toISOString(),
-          $lte: new Date(endDate).toISOString(),
-        },
+        $or: [
+          { startTime: { $gte: new Date(startDate).toISOString(), $lte: new Date(endDate).toISOString() } },
+          { timestamp: { $gte: new Date(startDate).toISOString(), $lte: new Date(endDate).toISOString() } },
+          { changeTime: { $gte: new Date(startDate).toISOString(), $lte: new Date(endDate).toISOString() } },
+          { administrationTime: { $gte: new Date(startDate).toISOString(), $lte: new Date(endDate).toISOString() } }
+        ]
       })
       .toArray()
 

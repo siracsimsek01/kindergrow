@@ -4,6 +4,7 @@ import { format } from "date-fns"
 import { useRouter } from "next/navigation"
 import React from "react"
 import { useToast } from "@/components/ui/use-toast"
+import { useChildContext } from "@/contexts/child-context"
 import { Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -37,14 +38,25 @@ export function EventFormModal({ open, onOpenChange }: EventFormModalProps) {
     const router = useRouter()
     const dispatch = useAppDispatch()
     const { toast } = useToast()
+    const { selectedChild } = useChildContext()
 
-    const handleSubmit = async (e: React.FormEvent, childId) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsSubmitting(true)
 
+        if (!selectedChild) {
+            toast({
+                title: "Error",
+                description: "Please select a child first.",
+                variant: "destructive"
+            })
+            setIsSubmitting(false)
+            return
+        }
+
         try {
             const formattedDate = date ? format(date, "yyyy-MM-dd") : ""
-            const response = await fetch(`/api/children/${childId}event`, {
+            const response = await fetch(`/api/children/${selectedChild.id}/events`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -58,7 +70,10 @@ export function EventFormModal({ open, onOpenChange }: EventFormModalProps) {
             })
 
             if (response.ok) {
-                toast({ title: "Event recorded successfully.", status: "success" })
+                toast({ 
+                    title: "Event recorded successfully.",
+                    description: "Your event has been saved."
+                })
                 // Reset form
                 setDate(new Date())
                 setTime(format(new Date(), "HH:mm"))
@@ -74,7 +89,11 @@ export function EventFormModal({ open, onOpenChange }: EventFormModalProps) {
             }
         } catch (error) {
             console.error("Error recording event:", error)
-            toast({ title: "Failed to record event. Please try again.", status: "error" })
+            toast({ 
+                title: "Failed to record event. Please try again.",
+                description: "An error occurred while saving your event.",
+                variant: "destructive"
+            })
         } finally {
             setIsSubmitting(false)
         }

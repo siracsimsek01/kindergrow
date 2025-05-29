@@ -189,7 +189,7 @@ export function MedicationEntriesTable() {
         </CardContent>
       </Card>
 
-      <AddEventModal open={isAddEventModalOpen} onOpenChange={setIsAddEventModalOpen} defaultEventType="medication" />
+      <AddEventModal open={isAddEventModalOpen} onOpenChange={setIsAddEventModalOpen} eventType="medication" />
     </>
   )
 }

@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import type React from "react"
+
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -8,6 +10,15 @@ import { format } from "date-fns"
 import { CalendarIcon } from 'lucide-react'
 
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import {
   Form,
   FormControl,
@@ -23,8 +34,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks"
-import { addEventAsync } from "@/lib/redux/slices/eventsSlice"
+import { useChildContext } from "@/contexts/child-context"
 import { Textarea } from "@/components/ui/textarea"
 
 const formSchema = z.object({
@@ -43,15 +53,11 @@ const formSchema = z.object({
   notes: z.string().optional(),
 })
 
-interface GrowthFormProps {
-  onSuccess?: () => void
-}
-
-export function GrowthForm({ onSuccess }: GrowthFormProps) {
-  const dispatch = useAppDispatch()
+export function GrowthForm({ children }: { children: React.ReactNode }) {
   const { toast } = useToast()
+  const { selectedChild } = useChildContext()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const selectedChild = useAppSelector((state) => state.children.selectedChild)
+  const [open, setOpen] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -63,6 +69,19 @@ export function GrowthForm({ onSuccess }: GrowthFormProps) {
       notes: "",
     },
   })
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        date: new Date(),
+        weight: 0,
+        height: 0,
+        headCircumference: 0,
+        notes: "",
+      })
+    }
+  }, [open, form])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!selectedChild) {
@@ -78,47 +97,40 @@ export function GrowthForm({ onSuccess }: GrowthFormProps) {
       setIsSubmitting(true)
       console.log("Submitting growth data:", values)
 
-      const resultAction = await dispatch(
-        addEventAsync({
-          childId: selectedChild.id,
-          type: "growth",
-          data: {
-            date: values.date.toISOString(),
-            weight: values.weight,
-            height: values.height,
-            headCircumference: values.headCircumference,
-            notes: values.notes || "",
-          },
-        })
-      )
+      const response = await fetch(`/api/children/${selectedChild.id}/growth`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          date: values.date.toISOString(),
+          height: values.height,
+          weight: values.weight,
+          headCircumference: values.headCircumference,
+          heightUnit: "cm",
+          weightUnit: "kg",
+          notes: values.notes || "",
+        }),
+      })
 
-      if (addEventAsync.fulfilled.match(resultAction)) {
-        toast({
-          title: "Growth record added",
-          description: `Growth record has been added successfully.`,
-        })
-
-        // Reset form
-        form.reset({
-          date: new Date(),
-          weight: 0,
-          height: 0,
-          headCircumference: 0,
-          notes: "",
-        })
-
-        // Call onSuccess callback if provided
-        if (onSuccess) {
-          onSuccess()
-        }
-      } else {
-        throw new Error("Failed to add growth record")
+      if (!response.ok) {
+        const errorData = await response.text()
+        throw new Error(`Failed to add growth record: ${errorData}`)
       }
+
+      toast({
+        title: "Growth record added",
+        description: `Growth record has been added successfully.`,
+      })
+
+      // Reset form and close modal
+      form.reset()
+      setOpen(false)
     } catch (error) {
       console.error("Error adding growth record:", error)
       toast({
         title: "Error",
-        description: "Failed to add growth record. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to add growth record. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -127,8 +139,17 @@ export function GrowthForm({ onSuccess }: GrowthFormProps) {
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Record Growth Metrics</DialogTitle>
+          <DialogDescription>
+            {selectedChild ? `Record new growth measurements for ${selectedChild.name}` : "Please select a child first"}
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="date"
@@ -155,7 +176,11 @@ export function GrowthForm({ onSuccess }: GrowthFormProps) {
                     mode="single"
                     selected={field.value}
                     onSelect={field.onChange}
-                    disabled={(date) => date > new Date()}
+                    disabled={(date) => {
+                      const today = new Date()
+                      today.setHours(23, 59, 59, 999)
+                      return date > today
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
@@ -232,17 +257,21 @@ export function GrowthForm({ onSuccess }: GrowthFormProps) {
           )}
         />
 
-        <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? (
-            <>
-              <LoadingSpinner size="sm" className="mr-2" />
-              Saving...
-            </>
-          ) : (
-            "Save Growth Record"
-          )}
-        </Button>
-      </form>
-    </Form>
+            <DialogFooter>
+              <Button type="submit" disabled={isSubmitting || !selectedChild}>
+                {isSubmitting ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Growth Record"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   )
 }

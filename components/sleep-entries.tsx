@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal } from "lucide-react"
-import { SleepForm } from "@/components/forms/sleep-form"
+import { SleepFormModal } from "@/components/sleep-form-modal"
 import { useEffect, useState } from "react"
 
 export function SleepEntries() {
@@ -39,12 +39,12 @@ export function SleepEntries() {
           <CardTitle>Sleep Entries</CardTitle>
           <CardDescription>Recent sleep records for your children</CardDescription>
         </div>
-        <SleepForm>
+        <SleepFormModal>
           <Button variant="outline" size="sm">
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Entry
           </Button>
-        </SleepForm>
+        </SleepFormModal>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
@@ -81,9 +81,9 @@ export function SleepEntries() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <SleepForm entry={entry}>
+                  <SleepFormModal>
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Edit Entry</DropdownMenuItem>
-                  </SleepForm>
+                  </SleepFormModal>
                   <DropdownMenuItem>View Details</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>

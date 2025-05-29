@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { AddChildModal } from "@/components/add-child-modal"
 import { AddEventModal } from "@/components/add-event-modal"
 import { EventTypeSelectorModal } from "@/components/event-type-selector-modal"
+import { getSafeTimestamp } from '@/lib/date-utils'
 
 // Define the context type with expanded functionality
 interface ChildContextType {
@@ -42,7 +43,7 @@ const ChildContext = createContext<ChildContextType>({
   isEventTypeSelectorOpen: false,
   setIsEventTypeSelectorOpen: () => {},
   eventType: null,
-  lastUpdated: Date.now(),
+  lastUpdated: getSafeTimestamp(),
   triggerRefresh: () => {},
   isRefreshing: false,
   enableAutoRefresh: () => {},
@@ -64,7 +65,7 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
   const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false)
   const [isEventTypeSelectorOpen, setIsEventTypeSelectorOpen] = useState(false)
   const [eventType, setEventType] = useState<string | null>(null)
-  const [lastUpdated, setLastUpdated] = useState(Date.now())
+  const [lastUpdated, setLastUpdated] = useState(getSafeTimestamp())
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false)
   const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null)
@@ -116,7 +117,7 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
   // Function to trigger a refresh of the data
   const triggerRefresh = useCallback(() => {
     setIsRefreshing(true)
-    setLastUpdated(Date.now())
+    setLastUpdated(getSafeTimestamp())
     setRefreshKey(prev => prev + 1)
 
     // Reduce the timeout to make the refresh feel more responsive

@@ -73,13 +73,13 @@ export async function POST(request: NextRequest, { params }) {
   }
 }
 
-export async function PATCH(request: NextRequest, context : { params : { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = context.params.id;
+    const { id: childId } = await params;
     if (!await checkOwnership(db, childId, userId)) return NextResponse.json({ error: "Child not found" }, { status: 404 });
 
     const { searchParams } = new URL(request.url);

@@ -7,10 +7,10 @@ import { format } from "date-fns"
 
 export function DashboardCalendar() {
   const { children, selectedChild } = useChildContext()
-  const [events, setEvents] = useState([])
+  const [events, setEvents] = useState<any[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [isLoading, setIsLoading] = useState(false)
-  const [dateEvents, setDateEvents] = useState([])
+  const [dateEvents, setDateEvents] = useState<any[]>([])
 
   useEffect(() => {
     if (children.length > 0) {
@@ -37,14 +37,14 @@ export function DashboardCalendar() {
 
       // Fetch events for all children
       const eventPromises = children.map(async (child) => {
-        const response = await fetch(`/api/children/${child.id}/events`})
+        const response = await fetch(`/api/children/${child.id}/events`)
         if (!response.ok) {
           throw new Error(`Failed to fetch events for child ${child.id}`)
         }
         const childEvents = await response.json()
 
         // Add child name to each event
-        return childEvents.map((event) => ({
+        return childEvents.map((event: any) => ({
           ...event,
           childName: child.name,
         }))
@@ -61,13 +61,13 @@ export function DashboardCalendar() {
 
   // Function to get dates with events for highlighting in the calendar
   const getDatesWithEvents = () => {
-    const dates = events.map((event) => {
+    const dates = events.map((event: any) => {
       const date = new Date(event.timestamp)
       return format(date, "yyyy-MM-dd")
     })
 
     // Remove duplicates
-    return [...new Set(dates)].map((dateStr) => new Date(dateStr))
+    return [...new Set(dates)].map((dateStr: string) => new Date(dateStr))
   }
 
   return (

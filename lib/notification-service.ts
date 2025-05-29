@@ -1,7 +1,5 @@
 "use client"
 
-import { type SleepModel, predictNextDaySleep } from "./tensorflow/sleep-model"
-
 export interface Notification {
   id: string
   title: string
@@ -16,7 +14,6 @@ export class NotificationService {
   private static instance: NotificationService
   private notifications: Notification[] = []
   private permission: NotificationPermission = "default"
-  private sleepModel: SleepModel | null = null
 
   private constructor() {
     // Private constructor for singleton pattern
@@ -37,44 +34,6 @@ export class NotificationService {
 
     // Load notifications from localStorage
     this.loadNotifications()
-  }
-
-  public setSleepModel(model: SleepModel) {
-    this.sleepModel = model
-  }
-
-  public async analyzeSleepData(sleepData: number[]) {
-    if (!this.sleepModel) return
-
-    try {
-      // Predict next day's sleep
-      const predictedSleep = await predictNextDaySleep(this.sleepModel, sleepData)
-
-      // Calculate average sleep
-      const recentAverage = sleepData.slice(-7).reduce((sum, val) => sum + val, 0) / 7
-
-      // Generate notifications based on predictions
-      if (predictedSleep < recentAverage * 0.8) {
-        this.addNotification({
-          title: "Sleep Pattern Alert",
-          message: "Our AI predicts your child may sleep less than usual tomorrow. Consider adjusting bedtime routine.",
-          type: "warning",
-          link: "/dashboard/sleep",
-        })
-      }
-
-      if (sleepData.slice(-3).every((val) => val < 6)) {
-        this.addNotification({
-          title: "Sleep Deficit Detected",
-          message:
-            "Your child has been sleeping less than recommended for 3 days. This may affect mood and development.",
-          type: "warning",
-          link: "/dashboard/sleep",
-        })
-      }
-    } catch (error) {
-      console.error("Error analyzing sleep data:", error)
-    }
   }
 
   public getNotifications(): Notification[] {

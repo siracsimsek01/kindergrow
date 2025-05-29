@@ -24,6 +24,7 @@ import React from "react"
 interface SleepFormModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  childId?: string
 }
 
 export function SleepFormModal({ open, onOpenChange, childId }: SleepFormModalProps) {

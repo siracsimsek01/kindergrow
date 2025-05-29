@@ -54,7 +54,7 @@ export function FeedingChart() {
       }, {})
 
       // Convert to array and sort by date
-      const formattedData = Object.values(feedingByDay)
+      const formattedData = Object.values(feedingByDay) as Array<{date: string, count: number, amount: number}>
       formattedData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
       setFeedingData(formattedData)

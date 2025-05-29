@@ -16,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { useChildContext } from "@/contexts/child-context"
-import { addEvent } from "@/app/actions"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
@@ -100,40 +99,46 @@ Notes: ${values.notes}`
           : ""
       }`
 
-      const result = await addEvent({
-        childId: selectedChild.id,
-        eventType: "feeding",
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-        details: details,
-        value: values.amount ? Number.parseFloat(values.amount) : undefined,
+      // Create feeding entry via API
+      const response = await fetch(`/api/children/${selectedChild.id}/feeding`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          method: values.feedingType,
+          amount: values.amount ? Number.parseFloat(values.amount) : 0,
+          notes: details || "",
+        }),
       })
 
-      if (result.success) {
-        toast({
-          title: "Feeding entry added",
-          description: `Feeding entry has been added for ${selectedChild.name}.`,
-        })
+      if (!response.ok) {
+        throw new Error("Failed to save feeding entry")
+      }
 
-        // Trigger refresh to update UI
-        triggerRefresh()
+      toast({
+        title: "Feeding entry added",
+        description: `Feeding entry has been added for ${selectedChild.name}.`,
+      })
 
-        // Reset form
-        form.reset({
-          feedingType: "breast",
-          amount: "",
-          date: new Date(),
-          startTime: format(new Date(), "HH:mm"),
-          endTime: format(new Date(Date.now() + 20 * 60000), "HH:mm"),
-          notes: "",
-        })
+      // Trigger refresh to update UI
+      triggerRefresh()
 
-        // Call onSuccess callback if provided
-        if (onSuccess) {
-          onSuccess()
-        }
-      } else {
-        throw new Error(result.error || "Failed to add feeding entry")
+      // Reset form
+      form.reset({
+        feedingType: "breast",
+        amount: "",
+        date: new Date(),
+        startTime: format(new Date(), "HH:mm"),
+        endTime: format(new Date(Date.now() + 20 * 60000), "HH:mm"),
+        notes: "",
+      })
+
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess()
       }
     } catch (error) {
       console.error("Error adding feeding entry:", error)

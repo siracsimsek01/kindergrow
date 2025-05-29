@@ -27,7 +27,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { useChildContext } from "@/contexts/child-context"
-import { addEvent } from "@/app/actions"
 import { cn } from "@/lib/utils"
 
 const formSchema = z.object({
@@ -110,27 +109,32 @@ export function TemperatureForm({ children }: { children: React.ReactNode }) {
       const details = `Temperature: ${values.temperature} ${values.unit === "celsius" ? "°C" : "°F"}
 Method: ${values.method}${values.notes ? `\nNotes: ${values.notes}` : ""}`
 
-      const result = await addEvent({
-        childId: selectedChild.id,
-        eventType: "temperature",
-        startTime: time.toISOString(),
-        endTime: time.toISOString(),
-        details: details,
-        value: Number.parseFloat(values.temperature),
+      // Create temperature record via API
+      const response = await fetch(`/api/children/${selectedChild.id}/temperature`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          value: Number.parseFloat(values.temperature),
+          unit: values.unit === "celsius" ? "C" : "F",
+          recordedAt: time.toISOString(),
+          notes: values.notes || "",
+        }),
       })
 
-      if (result.success) {
-        toast({
-          title: "Temperature recorded",
-          description: `Temperature has been recorded for ${selectedChild.name}.`,
-        })
-
-        // Reset form and close modal
-        form.reset()
-        setOpen(false)
-      } else {
-        throw new Error(result.error || "Failed to record temperature")
+      if (!response.ok) {
+        throw new Error("Failed to record temperature")
       }
+
+      toast({
+        title: "Temperature recorded",
+        description: `Temperature has been recorded for ${selectedChild.name}.`,
+      })
+
+      // Reset form and close modal
+      form.reset()
+      setOpen(false)
     } catch (error) {
       console.error("Error recording temperature:", error)
       toast({

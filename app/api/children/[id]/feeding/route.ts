@@ -9,13 +9,13 @@ async function checkChildOwnership(db, childId, userId) {
 }
 
 // GET: All feeding events (supports startDate/endDate)
-export async function GET(request: NextRequest, context: { params : { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = context.params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
 
@@ -36,13 +36,13 @@ export async function GET(request: NextRequest, context: { params : { id: string
 }
 
 // POST: Create feeding event
-export async function POST(request: NextRequest, { params }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
 
@@ -73,13 +73,13 @@ export async function POST(request: NextRequest, { params }) {
 }
 
 // PATCH: Update feeding event (by eventId in query param)
-export async function PATCH(request: NextRequest, { params }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
 

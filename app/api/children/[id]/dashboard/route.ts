@@ -5,7 +5,7 @@ import { ObjectId } from "mongodb";
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -15,7 +15,7 @@ export async function GET(
     }
 
     // Get the child ID from the URL
-    const childId =  context.params.id;
+    const { id: childId } = await params;
 
     const { db } = await connectToDatabase();
 

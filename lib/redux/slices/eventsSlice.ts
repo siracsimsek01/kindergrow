@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"
+import { getSafeTimestamp } from '@/lib/date-utils'
 
 export interface Event {
   id: string
@@ -26,7 +27,7 @@ const initialState: EventsState = {
   items: [],
   loading: false,
   error: null,
-  lastUpdated: Date.now(),
+  lastUpdated: getSafeTimestamp(),
 }
 
 export const fetchEvents = createAsyncThunk(

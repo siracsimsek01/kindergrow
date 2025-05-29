@@ -8,13 +8,13 @@ async function checkChildOwnership(db, childId, userId) {
 }
 
 // GET: Fetch growth records for a child (optional startDate/endDate)
-export async function GET(request: NextRequest, context : { params : { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = context.params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
 
@@ -35,13 +35,13 @@ export async function GET(request: NextRequest, context : { params : { id: strin
 }
 
 // POST: Add new growth record
-export async function POST(request: NextRequest, { params }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
 

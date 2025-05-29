@@ -157,7 +157,11 @@ export function AddChildModal({ open, onOpenChange, onSuccess }: AddChildModalPr
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
-                        disabled={(date) => date > new Date()}
+                        disabled={(date) => {
+                          const today = new Date()
+                          today.setHours(23, 59, 59, 999)
+                          return date > today
+                        }}
                         initialFocus
                       />
                     </PopoverContent>

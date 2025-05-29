@@ -172,7 +172,13 @@ export function DiaperForm({ onSuccess, onCancel }: DiaperFormProps) {
                       mode="single"
                       selected={field.value}
                       onSelect={field.onChange}
-                      disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                      disabled={(date) => {
+                        const today = new Date()
+                        today.setHours(23, 59, 59, 999)
+                        const minDate = new Date("1900-01-01")
+                        minDate.setHours(0, 0, 0, 0)
+                        return date > today || date < minDate
+                      }}
                       initialFocus
                     />
                   </PopoverContent>

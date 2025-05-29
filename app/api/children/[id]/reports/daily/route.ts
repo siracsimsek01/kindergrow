@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     
@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
     }
     
     const { searchParams } = new URL(request.url);
-    const childId = searchParams.get('childId');
+    const params = await context.params;
+    const childId = params.id;
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0]; // Default to today
     
     if (!childId) {

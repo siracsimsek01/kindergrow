@@ -3,7 +3,7 @@ import connectToDatabase from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 import { auth } from "@clerk/nextjs/server"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth()
 
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     const { db } = await connectToDatabase()
-    const id = params.id
+    const { id } = await params
 
     // Create a query that works for both ObjectId and string IDs
     const query = {
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth()
 
@@ -54,7 +54,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const { db } = await connectToDatabase()
-    const id = params.id
+    const { id } = await params
     const data = await request.json()
 
     // Remove fields that shouldn't be updated
@@ -105,7 +105,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, context :  { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth()
 
@@ -114,7 +114,7 @@ export async function DELETE(request: NextRequest, context :  { params: { id: st
     }
 
     const { db } = await connectToDatabase()
-    const id = context.params.id
+    const { id } = await params
 
     // Create a query that works for both ObjectId and string IDs
     const query = {

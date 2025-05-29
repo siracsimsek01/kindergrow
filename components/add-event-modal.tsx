@@ -599,7 +599,12 @@ export function AddEventModal({
                 field.onChange(date);
               }
             }}
-            disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+            disabled={(date) => {
+              const today = new Date()
+              today.setHours(23, 59, 59, 999)
+              const minDate = new Date("1900-01-01")
+              return date > today || date < minDate
+            }}
             initialFocus
           />
           {showTime && (

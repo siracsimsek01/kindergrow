@@ -57,7 +57,6 @@ export default function ReportsPage() {
           reportType,
           startDate: dateRange.from.toISOString(),
           endDate: dateRange.to.toISOString(),
-          childId: selectedChild.id,
         }),
       })
 

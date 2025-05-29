@@ -9,12 +9,12 @@ async function checkChildOwnership(db, childId, userId) {
 }
 
 // GET: List events for a child (optionally filter by type, date, etc.)
-export async function GET(request: NextRequest, { params }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { db } = await connectToDatabase();
-    const childId = params.id;
+    const { id: childId } = await params;
 
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
@@ -44,12 +44,12 @@ export async function GET(request: NextRequest, { params }) {
 }
 
 // POST: Create a new event for a child
-export async function POST(request: NextRequest, context: { params : { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { db } = await connectToDatabase();
-    const childId = context.params.id;
+    const { id: childId } = await params;
 
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });

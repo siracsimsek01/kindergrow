@@ -120,13 +120,13 @@ export async function PATCH(request: NextRequest, { params }) {
 }
 
 // DELETE: Delete a diaper event
-export async function DELETE(request: NextRequest, context :{ params: { id: string}}) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = context.params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership({ db, childId, userId })) {
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
     }

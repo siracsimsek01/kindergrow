@@ -12,7 +12,7 @@ const EventsBubbleChart: React.FC<EventsBubbleChartProps> = ({ events }) => {
   const data = {
     name: 'Events',
     children: events.map(event => ({
-      name: event.type,
+      name: event.eventType,
       value: 1,
     })),
   };

@@ -9,6 +9,9 @@ import { Separator } from "@/components/ui/separator"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 
+// Force dynamic rendering to skip static generation
+export const dynamic = 'force-dynamic'
+
 export default function UserProfilePage() {
   const { isLoaded, isSignedIn, user } = useUser()
   const router = useRouter()
@@ -19,7 +22,7 @@ export default function UserProfilePage() {
     }
   }, [isLoaded, isSignedIn, router])
 
-  if (!isLoaded || !isSignedIn) {
+  if (!isLoaded || !isSignedIn || !user) {
     return (
       <div className="flex justify-center items-center h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -49,8 +52,8 @@ export default function UserProfilePage() {
               <h3 className="text-xl font-medium">{user.fullName || user.username}</h3>
               <p className="text-sm text-muted-foreground">{user.primaryEmailAddress?.emailAddress}</p>
             </div>
-            <Button variant="outline" className="w-full" onClick={() => window.open(user.profileUrl, "_blank")}>
-              Edit Profile
+            <Button variant="outline" className="w-full" disabled>
+              Edit Profile (Coming Soon)
             </Button>
           </CardContent>
         </Card>
@@ -90,9 +93,9 @@ export default function UserProfilePage() {
                   <Button
                     variant="link"
                     className="px-0 text-sm"
-                    onClick={() => window.open(user.profileUrl, "_blank")}
+                    disabled
                   >
-                    Change password
+                    Change password (Via Clerk Dashboard)
                   </Button>
                 </div>
                 <Separator />
@@ -102,9 +105,9 @@ export default function UserProfilePage() {
                   <Button
                     variant="link"
                     className="px-0 text-sm"
-                    onClick={() => window.open(user.profileUrl, "_blank")}
+                    disabled
                   >
-                    Enable 2FA
+                    Enable 2FA (Via Clerk Dashboard)
                   </Button>
                 </div>
               </TabsContent>

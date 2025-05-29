@@ -14,12 +14,12 @@ async function checkEventOwnership(db, eventId, childId, userId) {
 }
 
 // GET: Fetch one event
-export async function GET(request: NextRequest, context : { params  : { id: string, eventId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string, eventId: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { db } = await connectToDatabase();
-    const { id: childId, eventId } = context.params;
+    const { id: childId, eventId } = await params;
 
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
@@ -35,12 +35,12 @@ export async function GET(request: NextRequest, context : { params  : { id: stri
 }
 
 // PATCH: Update one event (partial update)
-export async function PATCH(request: NextRequest, { params }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string, eventId: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { db } = await connectToDatabase();
-    const { id: childId, eventId } = params;
+    const { id: childId, eventId } = await params;
 
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
@@ -65,12 +65,12 @@ export async function PATCH(request: NextRequest, { params }) {
 }
 
 // DELETE: Remove one event
-export async function DELETE(request: NextRequest, { params }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string, eventId: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { db } = await connectToDatabase();
-    const { id: childId, eventId } = params;
+    const { id: childId, eventId } = await params;
 
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
