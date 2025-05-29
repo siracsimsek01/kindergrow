@@ -26,6 +26,7 @@ interface ChildContextType {
   isRefreshing: boolean
   enableAutoRefresh: (enabled: boolean) => void
   autoRefreshEnabled: boolean
+  addChildDirectly: (child: any) => void
 }
 
 // Create the context with default values
@@ -46,6 +47,7 @@ const ChildContext = createContext<ChildContextType>({
   isRefreshing: false,
   enableAutoRefresh: () => {},
   autoRefreshEnabled: false,
+  addChildDirectly: () => {},
 })
 
 // Custom hook to use the child context
@@ -66,6 +68,7 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false)
   const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // Use refs to prevent stale closures in event handlers
   const isAddChildModalOpenRef = useRef(isAddChildModalOpen)
@@ -114,11 +117,27 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
   const triggerRefresh = useCallback(() => {
     setIsRefreshing(true)
     setLastUpdated(Date.now())
+    setRefreshKey(prev => prev + 1)
 
-    // Set a timeout to reset the refreshing state after a short delay
+    // Reduce the timeout to make the refresh feel more responsive
     setTimeout(() => {
       setIsRefreshing(false)
-    }, 1000)
+    }, 500) // Reduced from 1000ms to 500ms
+  }, [])
+
+  // Function to add a child directly to the context without full refresh
+  const addChildDirectly = useCallback((newChild: any) => {
+    setChildren(prev => {
+      const updated = [...prev, newChild]
+      
+      // If this is the first child, select it
+      if (prev.length === 0) {
+        setSelectedChild(newChild)
+        localStorage.setItem("selectedChildId", newChild._id)
+      }
+      
+      return updated
+    })
   }, [])
 
   // Function to enable/disable auto-refresh
@@ -234,16 +253,14 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
     isRefreshing,
     enableAutoRefresh,
     autoRefreshEnabled,
+    addChildDirectly,
   }
 
   // Handle success callbacks from modals
   const handleChildAdded = useCallback(() => {
-    triggerRefresh()
-    toast({
-      title: "Success",
-      description: "Child added successfully",
-    })
-  }, [triggerRefresh, toast])
+    // Child is now added directly via addChildDirectly, no need to refresh
+    // The modal handles its own success toast
+  }, [])
 
   const handleEventAdded = useCallback(() => {
     triggerRefresh()

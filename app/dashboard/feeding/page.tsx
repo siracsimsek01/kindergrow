@@ -11,6 +11,7 @@ import { format } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Utensils } from "lucide-react"
+import { ChartSkeleton, TableSkeleton, StatCardSkeleton } from "@/components/ui/skeleton-loader"
 
 interface FeedingEvent {
   id: string
@@ -44,7 +45,7 @@ export default function FeedingTrackingPage() {
         setError(null)
         console.log(`Fetching feeding events for child ID: ${selectedChild.id}`)
 
-        const response = await fetch(`/api/events?childId=${selectedChild.id}&eventType=feeding`, {
+        const response = await fetch(`/api/children/${selectedChild.id}/feeding`, {
           cache: "no-store",
           headers: {
             "Cache-Control": "no-cache",
@@ -152,10 +153,38 @@ export default function FeedingTrackingPage() {
       </div>
 
       {!isLoaded ? (
-        <div className="flex h-[400px] items-center justify-center">
-          <LoadingSpinner size="lg" />
-          <span className="ml-4 text-lg">Loading feeding data...</span>
-        </div>
+        <>
+                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                   {Array.from({ length: 5 }).map((_, i) => (
+                     <Card key={i}>
+                       <StatCardSkeleton isLoading={true}>
+                         {/* Content will never render */}
+                         <div></div>
+                       </StatCardSkeleton>
+                     </Card>
+                   ))}
+                 </div>
+       
+                 <Card>
+                   <ChartSkeleton isLoading={true} height="h-[350px]">
+                     <div></div>
+                   </ChartSkeleton>
+                 </Card>
+       
+                 <div className="grid gap-4 md:grid-cols-2">
+                   <Card>
+                     <ChartSkeleton isLoading={true}>
+                       <div></div>
+                     </ChartSkeleton>
+                   </Card>
+       
+                   <Card>
+                     <TableSkeleton isLoading={true}>
+                       <div></div>
+                     </TableSkeleton>
+                   </Card>
+                 </div>
+               </>
       ) : !selectedChild ? (
         <Card>
           <CardContent className="flex h-[400px] items-center justify-center">

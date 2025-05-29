@@ -38,13 +38,13 @@ export function EventFormModal({ open, onOpenChange }: EventFormModalProps) {
     const dispatch = useAppDispatch()
     const { toast } = useToast()
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent, childId) => {
         e.preventDefault()
         setIsSubmitting(true)
 
         try {
             const formattedDate = date ? format(date, "yyyy-MM-dd") : ""
-            const response = await fetch("/api/event", {
+            const response = await fetch(`/api/children/${childId}event`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

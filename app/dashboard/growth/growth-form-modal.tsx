@@ -17,7 +17,8 @@ import { format } from "date-fns"
 import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
-import React from "react"
+import React, { useContext } from "react"
+import { useChildContext } from "@/contexts/child-context"
 
 interface GrowthFormModalProps {
   open: boolean
@@ -25,6 +26,7 @@ interface GrowthFormModalProps {
 }
 
 export function GrowthFormModal({ open, onOpenChange }: GrowthFormModalProps) {
+  const { selectedChild } = useChildContext();
   const [date, setDate] = React.useState<Date | undefined>(new Date())
   const [height, setHeight] = React.useState<string>("")
   const [weight, setWeight] = React.useState<string>("")
@@ -39,7 +41,7 @@ export function GrowthFormModal({ open, onOpenChange }: GrowthFormModalProps) {
 
     try {
       const formattedDate = date ? format(date, "yyyy-MM-dd") : ""
-      const response = await fetch("/api/growth", {
+      const response = await fetch(`api/children/${selectedChild.id}/growth`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

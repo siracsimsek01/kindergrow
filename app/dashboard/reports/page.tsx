@@ -12,9 +12,10 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { FileDown, FileText, BarChart } from 'lucide-react'
 import { addDays, format, subDays, subMonths } from "date-fns"
 import type { DateRange } from "react-day-picker"
+import { ChartSkeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton-loader"
 
 export default function ReportsPage() {
-  const { selectedChild, children } = useChildContext()
+  const { selectedChild, isLoading: isChildLoading, children } = useChildContext()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("generate")
   const [reportType, setReportType] = useState("feeding")
@@ -23,6 +24,7 @@ export default function ReportsPage() {
     from: subMonths(new Date(), 1),
     to: new Date(),
   })
+  
 
   const handleGenerateReport = async () => {
     if (!selectedChild) {
@@ -46,7 +48,7 @@ export default function ReportsPage() {
     try {
       setIsGenerating(true)
 
-      const response = await fetch("/api/reports/generate", {
+      const response = await fetch(`/api/children/${selectedChild.id}/reports/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -156,6 +158,7 @@ export default function ReportsPage() {
         break
     }
   }
+  const isLoaded = !isChildLoading && children.length > 0 && selectedChild
 
   return (
     <div className="space-y-6">
@@ -171,7 +174,40 @@ export default function ReportsPage() {
           <TabsTrigger value="generate">Generate Report</TabsTrigger>
           <TabsTrigger value="saved">Saved Reports</TabsTrigger>
         </TabsList>
-
+      {!isLoaded ? (
+         <>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Card key={i}>
+                        <StatCardSkeleton isLoading={true}>
+                          {/* Content will never render */}
+                          <div></div>
+                        </StatCardSkeleton>
+                      </Card>
+                    ))}
+                  </div>
+        
+                  <Card>
+                    <ChartSkeleton isLoading={true} height="h-[350px]">
+                      <div></div>
+                    </ChartSkeleton>
+                  </Card>
+        
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Card>
+                      <ChartSkeleton isLoading={true}>
+                        <div></div>
+                      </ChartSkeleton>
+                    </Card>
+        
+                    <Card>
+                      <TableSkeleton isLoading={true}>
+                        <div></div>
+                      </TableSkeleton>
+                    </Card>
+                  </div>
+                </>
+      ) : (
         <TabsContent value="generate" className="space-y-4">
           <Card>
             <CardHeader>
@@ -347,6 +383,8 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+      )}
+        
 
         <TabsContent value="saved" className="space-y-4">
           <Card>

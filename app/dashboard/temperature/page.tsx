@@ -6,11 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { TemperatureChart } from "@/components/charts/temperature-chart"
 import { Button } from "@/components/ui/button"
-import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Thermometer, AlertTriangle } from "lucide-react"
 import { TemperatureLog } from "@/components/temperature-log"
+import { ChartSkeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton-loader"
 
 interface TemperatureEvent {
   id: string
@@ -42,7 +42,7 @@ export default function TemperatureTrackingPage() {
         setError(null)
         console.log(`Fetching temperature events for child ID: ${selectedChild.id}`)
 
-        const response = await fetch(`/api/events?childId=${selectedChild.id}&eventType=temperature`, {
+        const response = await fetch(`/api/children/${selectedChild.id}/temperature`, {
           cache: "no-store",
           headers: {
             "Cache-Control": "no-cache",
@@ -146,10 +146,38 @@ export default function TemperatureTrackingPage() {
       </div>
 
       {!isLoaded ? (
-        <div className="flex h-[400px] items-center justify-center">
-          <LoadingSpinner size="lg" />
-          <span className="ml-4 text-lg">Loading temperature data...</span>
-        </div>
+        <>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Card key={i}>
+                        <StatCardSkeleton isLoading={true}>
+                          {/* Content will never render */}
+                          <div></div>
+                        </StatCardSkeleton>
+                      </Card>
+                    ))}
+                  </div>
+        
+                  <Card>
+                    <ChartSkeleton isLoading={true} height="h-[350px]">
+                      <div></div>
+                    </ChartSkeleton>
+                  </Card>
+        
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Card>
+                      <ChartSkeleton isLoading={true}>
+                        <div></div>
+                      </ChartSkeleton>
+                    </Card>
+        
+                    <Card>
+                      <TableSkeleton isLoading={true}>
+                        <div></div>
+                      </TableSkeleton>
+                    </Card>
+                  </div>
+                </>
       ) : !selectedChild ? (
         <Card>
           <CardContent className="flex h-[400px] items-center justify-center">

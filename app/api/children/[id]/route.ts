@@ -105,7 +105,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, context :  { params: { id: string } }) {
   try {
     const { userId } = await auth()
 
@@ -114,7 +114,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     const { db } = await connectToDatabase()
-    const id = params.id
+    const id = context.params.id
 
     // Create a query that works for both ObjectId and string IDs
     const query = {

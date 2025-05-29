@@ -69,7 +69,7 @@ export function FeedingFormModal({ open, onOpenChange }: FeedingFormModalProps) 
 
     try {
       const formattedDate = date ? format(date, "yyyy-MM-dd") : ""
-      const response = await fetch("/api/feeding", {
+      const response = await fetch("/api/children/feeding", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

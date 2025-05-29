@@ -50,7 +50,7 @@ export default function SleepTrackingPage() {
       setError(null)
       console.log(`Fetching sleep events for child ID: ${selectedChild.id}`)
 
-      const response = await fetch(`/api/events?childId=${selectedChild.id}&eventType=sleeping`, {
+      const response = await fetch(`/api/children/${selectedChild.id}/sleep`, {
         cache: "no-store",
         headers: {
           "Cache-Control": "no-cache",
@@ -65,7 +65,7 @@ export default function SleepTrackingPage() {
       console.log(`Received ${events.length} sleep events`)
 
       // Process events
-      const processedEvents = events.map((event) => {
+      const processedEvents = events.map((event : any) => {
         const details = event.details || ""
 
         // Extract quality

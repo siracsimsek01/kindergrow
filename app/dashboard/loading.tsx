@@ -1,6 +1,5 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { DashboardPageSkeleton } from '@/components/ui/loading-skeleton'
 
 export default function DashboardLoading() {
-  return <LoadingScreen message="Loading KinderGrow Dashboard..." />
+  return <DashboardPageSkeleton />
 }
-

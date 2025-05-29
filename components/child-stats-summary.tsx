@@ -42,8 +42,9 @@ export function ChildStatsSummary() {
         console.log(`Fetching comprehensive stats for child ID: ${selectedChild.id}`)
 
         // Fetch all events for the child
-        const response = await fetch(`/api/events?childId=${selectedChild.id}`, {
-          cache: "no-store",
+        const response = await fetch(`/api/children/${selectedChild.id}/events`, {
+          method: 'GET',
+          cache: "no-store", 
           headers: {
             "Cache-Control": "no-cache",
           },

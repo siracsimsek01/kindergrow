@@ -10,8 +10,7 @@ import { GrowthChart } from "@/components/charts/growth-chart"
 import { ActivitySummaryChart } from "@/components/charts/activity-summary-chart"
 import { TemperatureChart } from "@/components/charts/temperature-chart"
 import { Button } from "@/components/ui/button"
-import { Plus, RefreshCw, ArrowRight, Clock, Activity, Edit } from "lucide-react"
-import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Plus, ArrowRight, Clock, Activity, Edit } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
@@ -21,7 +20,7 @@ import { RecentActivities } from "@/components/recent-activities"
 import { ChildStatsSummary } from "@/components/child-stats-summary"
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
-import { DashboardSkeleton } from "./loading-skeleton"
+import { ChartSkeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton-loader"
 
 interface DashboardStats {
   totalChildren: number
@@ -68,6 +67,7 @@ export default function DashboardPage() {
   const [editChildModalOpen, setEditChildModalOpen] = useState(false)
   const [childToEdit, setChildToEdit] = useState<any>(null)
 
+
   // Check if we're on mobile
   useEffect(() => {
     const checkMobile = () => {
@@ -112,7 +112,7 @@ export default function DashboardPage() {
       console.log(`Fetching stats for child ID: ${selectedChild.id}`)
 
       // Count events by type
-      const response = await fetch(`/api/events?childId=${selectedChild.id}&limit=100`, {
+      const response = await fetch(`/api/children/${selectedChild.id}/dashboard`, {
         cache: "no-store",
         headers: {
           "Cache-Control": "no-cache",
@@ -267,13 +267,13 @@ export default function DashboardPage() {
           >
             {isRefreshing || isContextRefreshing ? (
               <>
-                <LoadingSpinner size="sm" className="mr-2" />
+              
                 <span className="hidden sm:inline">Refreshing...</span>
                 <span className="sm:hidden">...</span>
               </>
             ) : (
               <>
-                <RefreshCw className={`mr-2 h-4 w-4 ${lastUpdated % 10000 < 500 ? "animate-spin" : ""}`} />
+              
                 <span className="hidden sm:inline">Refresh</span>
               </>
             )}
@@ -288,12 +288,40 @@ export default function DashboardPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex h-[400px] items-center justify-center">
-          <LoadingSpinner size="lg" />
-          <span className="ml-4 text-lg">Loading dashboard data...</span>
-        </div>
+  <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Card key={i}>
+                <StatCardSkeleton isLoading={true}>
+                  {/* Content will never render */}
+                  <div></div>
+                </StatCardSkeleton>
+              </Card>
+            ))}
+          </div>
+
+          <Card>
+            <ChartSkeleton isLoading={true} height="h-[350px]">
+              <div></div>
+            </ChartSkeleton>
+          </Card>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <ChartSkeleton isLoading={true}>
+                <div></div>
+              </ChartSkeleton>
+            </Card>
+
+            <Card>
+              <TableSkeleton isLoading={true}>
+                <div></div>
+              </TableSkeleton>
+            </Card>
+          </div>
+        </>
       ) : (
-        <>
+ <>
           <div className="grid gap-3 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 mobile-card-header">
@@ -450,7 +478,7 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className="space-y-4">
+                          <div className="space-y-4 ml-4">
                             <p className="text-sm">
                               You have recorded{" "}
                               <span className="font-medium">
@@ -728,6 +756,8 @@ export default function DashboardPage() {
           )}
         </>
       )}
+       
+  
     </div>
   )
 }

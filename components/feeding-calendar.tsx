@@ -53,7 +53,7 @@ export function FeedingCalendar() {
 
     try {
       setIsLoading(true)
-      const response = await fetch(`/api/events?childId=${selectedChild.id}&eventType=feeding`)
+      const response = await fetch(`/api/children/${selectedChild.id}/feeding`)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch feeding events: ${response.status} ${response.statusText}`)

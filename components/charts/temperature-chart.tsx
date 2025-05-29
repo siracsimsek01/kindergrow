@@ -60,7 +60,7 @@ export function TemperatureChart() {
         const startDate = subDays(endDate, 13) // 14 days including today
 
         const response = await fetch(
-          `/api/events?childId=${selectedChild.id}&eventType=temperature&startDate=${startOfDay(
+          `/api/children/${selectedChild.id}/events?eventType=temperature&startDate=${startOfDay(
             startDate,
           ).toISOString()}&endDate=${endOfDay(endDate).toISOString()}`,
           {

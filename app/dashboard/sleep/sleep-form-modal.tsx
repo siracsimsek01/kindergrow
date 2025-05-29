@@ -26,7 +26,7 @@ interface SleepFormModalProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function SleepFormModal({ open, onOpenChange }: SleepFormModalProps) {
+export function SleepFormModal({ open, onOpenChange, childId }: SleepFormModalProps) {
   const [date, setDate] = React.useState<Date | undefined>(new Date())
   const [startTime, setStartTime] = React.useState<string>(format(new Date(), "HH:mm"))
   const [endTime, setEndTime] = React.useState<string>(format(addHours(new Date(), 1), "HH:mm"))
@@ -62,7 +62,7 @@ export function SleepFormModal({ open, onOpenChange }: SleepFormModalProps) {
 
     try {
       const formattedDate = date ? format(date, "yyyy-MM-dd") : ""
-      const response = await fetch("/api/sleep", {
+      const response = await fetch(`/api/children/${childId}sleep`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

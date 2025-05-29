@@ -10,6 +10,7 @@ import { GrowthEntriesTable } from "@/components/growth-entries-table"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Plus } from "lucide-react"
 import { GrowthFormModal } from "./growth-form-modal"
+import { ChartSkeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton-loader"
 
 export default function GrowthPage() {
   const { selectedChild, isLoading } = useChildContext()
@@ -17,7 +18,38 @@ export default function GrowthPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   if (isLoading) {
-    return <LoadingScreen message="Loading growth data..." />
+      <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Card key={i}>
+                <StatCardSkeleton isLoading={true}>
+                  {/* Content will never render */}
+                  <div></div>
+                </StatCardSkeleton>
+              </Card>
+            ))}
+          </div>
+
+          <Card>
+            <ChartSkeleton isLoading={true} height="h-[350px]">
+              <div></div>
+            </ChartSkeleton>
+          </Card>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <ChartSkeleton isLoading={true}>
+                <div></div>
+              </ChartSkeleton>
+            </Card>
+
+            <Card>
+              <TableSkeleton isLoading={true}>
+                <div></div>
+              </TableSkeleton>
+            </Card>
+          </div>
+        </>
   }
 
   return (

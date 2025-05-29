@@ -36,7 +36,7 @@ export function DiaperEntriesTable() {
 
     try {
       setIsLoading(true)
-      const response = await fetch(`/api/events?childId=${selectedChild.id}&eventType=diaper`)
+      const response = await fetch(`/api/children/${selectedChild.id}/diaper`)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch diaper entries: ${response.status}`)

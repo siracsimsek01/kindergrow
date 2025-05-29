@@ -31,7 +31,7 @@ export function SleepChart() {
       const startDate = subDays(endDate, 7)
 
       const response = await fetch(
-        `/api/events?childId=${selectedChild.id}&eventType=sleeping&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
+        `/api/children/${selectedChild.id}/events?eventType=sleeping&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
       )
 
       if (!response.ok) {
@@ -122,7 +122,7 @@ export function SleepChart() {
                 <YAxis />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend />
-                <Bar dataKey="hours" fill="var(--color-hours)" name="Sleep Hours" />
+                <Bar dataKey="hours" fill="#fff" name="Sleep Hours" />
               </BarChart>
             </ResponsiveContainer>
           </ChartContainer>

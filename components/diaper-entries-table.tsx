@@ -52,7 +52,7 @@ export function DiaperEntriesTable({ events }: DiaperEntriesTableProps) {
     setIsDeleting((prev) => ({ ...prev, [eventId]: true }))
 
     try {
-      const response = await fetch(`/api/events/${eventId}`, {
+      const response = await fetch(`/api/children/${eventId}/events`, {
         method: "DELETE",
       })
 

@@ -16,6 +16,7 @@ import { DiaperChart } from "@/components/charts/diaper-chart"
 import { DiaperTypesChart } from "@/components/charts/diaper-types-chart"
 import { DiaperTrendsChart } from "@/components/charts/diaper-trends-chart"
 import { DiaperCalendarHeatmap } from "@/components/diaper-calendar-heatmap"
+import { ChartSkeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton-loader"
 
 interface DiaperEvent {
   id: string
@@ -53,7 +54,7 @@ export default function DiaperTrackingPage() {
         setError(null)
         console.log(`Fetching diaper events for child ID: ${selectedChild.id}`)
 
-        const response = await fetch(`/api/events?childId=${selectedChild.id}&eventType=diaper`, {
+        const response = await fetch(`/api/children/${selectedChild.id}/diaper`, {
           cache: "no-store",
           headers: {
             "Cache-Control": "no-cache",
@@ -263,10 +264,38 @@ export default function DiaperTrackingPage() {
       </div>
 
       {!isLoaded ? (
-        <div className="flex h-[400px] items-center justify-center">
-          <LoadingSpinner size="lg" />
-          <span className="ml-4 text-lg">Loading diaper data...</span>
-        </div>
+         <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Card key={i}>
+                <StatCardSkeleton isLoading={true}>
+                  {/* Content will never render */}
+                  <div></div>
+                </StatCardSkeleton>
+              </Card>
+            ))}
+          </div>
+
+          <Card>
+            <ChartSkeleton isLoading={true} height="h-[350px]">
+              <div></div>
+            </ChartSkeleton>
+          </Card>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <ChartSkeleton isLoading={true}>
+                <div></div>
+              </ChartSkeleton>
+            </Card>
+
+            <Card>
+              <TableSkeleton isLoading={true}>
+                <div></div>
+              </TableSkeleton>
+            </Card>
+          </div>
+        </>
       ) : !selectedChild ? (
         <Card>
           <CardContent className="flex h-[400px] items-center justify-center">

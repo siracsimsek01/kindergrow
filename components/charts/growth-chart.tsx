@@ -45,7 +45,7 @@ export function GrowthChart() {
         setError(null)
         console.log(`Fetching growth data for child ID: ${selectedChild.id}`)
 
-        const response = await fetch(`/api/events?childId=${selectedChild.id}&eventType=growth`, {
+        const response = await fetch(`/api/children/${selectedChild.id}/events?eventType=growth`, {
           cache: "no-store",
           headers: {
             "Cache-Control": "no-cache",

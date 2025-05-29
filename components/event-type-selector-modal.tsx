@@ -54,7 +54,7 @@ export function EventTypeSelectorModal({ open, onOpenChange }: EventTypeSelector
             <span>Diaper</span>
           </Button>
           <Button
-            onClick={() => handleSelectEventType("medications")}
+            onClick={() => handleSelectEventType("medication")}
             className="flex items-center justify-start gap-2 h-16 text-lg bg-primary/10 hover:bg-primary/20 text-primary"
             variant="outline"
           >

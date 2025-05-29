@@ -29,7 +29,7 @@ export function RecentActivities() {
       setError(null)
       console.log(`Fetching activities for child ID: ${selectedChild.id}`)
 
-      const response = await fetch(`/api/events?childId=${selectedChild.id}&limit=20`, {
+      const response = await fetch(`/api/children/${selectedChild.id}/events?limit=20&page=1`, {
         cache: "no-store",
         headers: {
           "Cache-Control": "no-cache",

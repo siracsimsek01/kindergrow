@@ -39,7 +39,7 @@ export function FeedingChart() {
         const startDate = subDays(endDate, 6) // 7 days including today
 
         const response = await fetch(
-          `/api/events?childId=${selectedChild.id}&eventType=feeding&startDate=${startOfDay(
+          `/api/children/${selectedChild.id}/events?eventType=feeding&startDate=${startOfDay(
             startDate,
           ).toISOString()}&endDate=${endOfDay(endDate).toISOString()}`,
           {
@@ -113,7 +113,11 @@ export function FeedingChart() {
     }
   }, [data])
 
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean;
+    payload?: Array<any>;
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
       // Calculate total feedings for this day
       const totalFeedings = payload.reduce((sum, entry) => sum + (entry.value || 0), 0)

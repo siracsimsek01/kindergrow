@@ -1,9 +1,15 @@
+const { default: next } = require('next')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    swcMinify: true,
     compiler: {
       removeConsole: process.env.NODE_ENV === 'production',
     },
+    turbopack: {
+      // Enable turbopack in development mode
+      enabled: process.env.NODE_ENV === 'development',
+    },
+    reactStrictMode: true,
     // Reduce the number of pages built in parallel
     experimental: {
       workerThreads: false,
@@ -19,4 +25,4 @@ const nextConfig = {
     enabled: process.env.ANALYZE === 'true',
   })
   
-  module.exports = nextConfig
+  module.exports = withBundleAnalyzer(nextConfig)

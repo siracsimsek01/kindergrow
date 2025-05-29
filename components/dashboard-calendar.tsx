@@ -37,7 +37,7 @@ export function DashboardCalendar() {
 
       // Fetch events for all children
       const eventPromises = children.map(async (child) => {
-        const response = await fetch(`/api/events?childId=${child.id}`)
+        const response = await fetch(`/api/children/${child.id}/events`})
         if (!response.ok) {
           throw new Error(`Failed to fetch events for child ${child.id}`)
         }

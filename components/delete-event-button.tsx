@@ -30,7 +30,7 @@ export function DeleteEventButton({ eventId, eventType, onDelete }: DeleteEventB
   const handleDelete = async () => {
     try {
       setIsDeleting(true)
-      const response = await fetch(`/api/events/${eventId}`, {
+      const response = await fetch(`/api/children//${eventId}/events`, {
         method: "DELETE",
       })
 

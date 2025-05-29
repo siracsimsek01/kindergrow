@@ -13,6 +13,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { UserIcon } from "lucide-react";
+import logo from "@/public/images/logo.png";
 
 interface LastUser {
   id: string;
@@ -60,7 +61,7 @@ export default function SignInPage() {
           <div className="flex justify-center mb-6">
             <div className="relative w-[120px] h-[120px]">
               <Image
-                src="/logo.png"
+                src={logo}
                 alt="KinderGrow Logo"
                 fill
                 className="object-contain"

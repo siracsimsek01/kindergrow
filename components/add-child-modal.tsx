@@ -22,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
+import { useChildContext } from "@/contexts/child-context"
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -44,6 +45,7 @@ interface AddChildModalProps {
 export function AddChildModal({ open, onOpenChange, onSuccess }: AddChildModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+  const { addChildDirectly } = useChildContext()
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -57,32 +59,45 @@ export function AddChildModal({ open, onOpenChange, onSuccess }: AddChildModalPr
     try {
       setIsSubmitting(true)
 
-      const response = await fetch("/api/children", {
+      const response = await fetch(`/api/children`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          name: values.name,
+          dateOfBirth: values.birthDate.toISOString(),
+          sex: values.gender,
+        }),
       })
 
       if (!response.ok) {
         throw new Error("Failed to add child")
       }
 
+      const newChild = await response.json()
+
       toast({
         title: "Success",
         description: "Child added successfully",
       })
 
-      // Reset form
-      form.reset()
+      // Add child directly to context to avoid sidebar lag
+      addChildDirectly(newChild)
 
-      // Close modal
+      // Close modal first
       onOpenChange(false)
 
-      // Trigger refresh
+      // Reset form after modal closes
+      setTimeout(() => {
+        form.reset()
+      }, 50)
+
+      // Call onSuccess callback if provided
       if (onSuccess) {
-        onSuccess()
+        setTimeout(() => {
+          onSuccess()
+        }, 100)
       }
     } catch (error) {
       console.error("Error adding child:", error)
@@ -137,7 +152,7 @@ export function AddChildModal({ open, onOpenChange, onSuccess }: AddChildModalPr
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                       <Calendar
                         mode="single"
                         selected={field.value}
