@@ -67,12 +67,12 @@ export async function getSleepEntries(childId: string, filters?: SleepFilters): 
     // Convert string dates to Date objects and ensure non-zero durations
     return data.map((entry: any) => ({
       ...entry,
-      startTime: new Date(entry.timestamp || Date.now()),
-      endTime: new Date(new Date(entry.timestamp || Date.now()).getTime() + (entry.duration || 60) * 60000),
+      startTime: new Date(entry.timestamp || new Date().toISOString()),
+      endTime: new Date(new Date(entry.timestamp || new Date().toISOString()).getTime() + (entry.duration || 60) * 60000),
       // Ensure duration is at least 0.1 hours (6 minutes) for display purposes
       duration: Math.max(0.1, entry.duration || 0.1) * 60, // Convert to minutes
       quality: entry.quality || "Good",
-      date: new Date(entry.timestamp || Date.now()),
+      date: new Date(entry.timestamp || new Date().toISOString()),
     }))
   } catch (error) {
     return handleApiError(error, "Failed to fetch sleep entries")

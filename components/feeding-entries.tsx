@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, memo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useChildContext } from "@/contexts/child-context"
 import { format } from "date-fns"
@@ -27,15 +27,7 @@ export function FeedingEntries() {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
-  useEffect(() => {
-    if (selectedChild) {
-      fetchFeedingEntries()
-    } else {
-      setEntries([])
-    }
-  }, [selectedChild])
-
-  const fetchFeedingEntries = async () => {
+  const fetchFeedingEntries = useCallback(async () => {
     if (!selectedChild) return
 
     try {
@@ -85,7 +77,15 @@ export function FeedingEntries() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [selectedChild])
+
+  useEffect(() => {
+    if (selectedChild) {
+      fetchFeedingEntries()
+    } else {
+      setEntries([])
+    }
+  }, [selectedChild, fetchFeedingEntries])
 
   const handleDelete = async (entryId: string) => {
     try {

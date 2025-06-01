@@ -78,6 +78,7 @@ import {
   StatCardSkeleton,
   TableSkeleton,
 } from "@/components/ui/skeleton-loader";
+import { getSafeUniqueId } from "@/lib/date-utils";
 
 interface MedicationEvent {
   id: string;
@@ -544,7 +545,7 @@ export default function MedicationsPage() {
   const handleAddMedication = (medication: Partial<MedicationEvent>) => {
     // In a real app, this would send data to the API
     const newMedication: MedicationEvent = {
-      id: `new-med-${Date.now()}`,
+      id: getSafeUniqueId("medication"),
       timestamp: new Date().toISOString(),
       details: `Medication: ${medication.medicationName}
 Dosage: ${medication.dosage}
@@ -652,7 +653,7 @@ Notes: ${medication.notes || selectedMedication.notes}`,
     if (!medication) return;
 
     const newAdministration: MedicationAdministration = {
-      id: `admin-${Date.now()}`,
+      id: getSafeUniqueId("admin"),
       medicationId,
       timestamp: new Date().toISOString(),
       takenAt: data.takenAt || new Date(),
@@ -1001,6 +1002,7 @@ Notes: ${medication.notes || selectedMedication.notes}`,
                           (m) => m.status === "active"
                         )}
                         administrations={administrations}
+                        timeFrame={timeFrame}
                         onLogDose={(medId) => {
                           setSelectedMedication(
                             medications.find((m) => m.id === medId) || null
@@ -1379,6 +1381,7 @@ Notes: ${medication.notes || selectedMedication.notes}`,
                       (m) => m.status === "active"
                     )}
                     administrations={administrations}
+                    timeFrame={timeFrame}
                     onLogDose={(medId) => {
                       setSelectedMedication(
                         medications.find((m) => m.id === medId) || null

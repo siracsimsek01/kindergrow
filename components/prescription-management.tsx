@@ -25,6 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Plus, FileText, Trash2, Edit, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { getSafeUniqueId } from "@/lib/date-utils"
 
 // Sample prescription data
 const samplePrescriptions = [
@@ -81,7 +82,7 @@ export function PrescriptionManagement() {
   const handleAddPrescription = () => {
     const prescription = {
       ...newPrescription,
-      id: Date.now().toString(),
+      id: getSafeUniqueId("prescription"),
       date: selectedDate || new Date(),
     }
 

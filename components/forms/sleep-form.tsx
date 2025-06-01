@@ -52,7 +52,7 @@ export function SleepForm({ onSuccess }: SleepFormProps) {
     defaultValues: {
       date: new Date(),
       startTime: format(new Date(), "HH:mm"),
-      endTime: format(new Date(Date.now() + 2 * 60 * 60000), "HH:mm"), // 2 hours later
+      endTime: format(new Date(new Date().getTime() + 2 * 60 * 60000), "HH:mm"), // 2 hours later
       quality: "good",
       notes: "",
     },

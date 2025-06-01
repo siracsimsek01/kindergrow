@@ -51,7 +51,7 @@ export function FeedingForm({ onSuccess, children }: FeedingFormProps) {
       amount: "",
       date: new Date(),
       startTime: format(new Date(), "HH:mm"),
-      endTime: format(new Date(Date.now() + 20 * 60000), "HH:mm"), // 20 minutes later
+      endTime: format(new Date(new Date().getTime() + 20 * 60000), "HH:mm"), // 20 minutes later
       notes: "",
     },
   })
@@ -132,7 +132,7 @@ Notes: ${values.notes}`
         amount: "",
         date: new Date(),
         startTime: format(new Date(), "HH:mm"),
-        endTime: format(new Date(Date.now() + 20 * 60000), "HH:mm"),
+        endTime: format(new Date(new Date().getTime() + 20 * 60000), "HH:mm"),
         notes: "",
       })
 

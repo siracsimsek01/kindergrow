@@ -115,7 +115,7 @@ const eventsSlice = createSlice({
   initialState,
   reducers: {
     triggerRefresh: (state) => {
-      state.lastUpdated = Date.now()
+      state.lastUpdated = getSafeTimestamp()
     },
   },
   extraReducers: (builder) => {
@@ -134,18 +134,18 @@ const eventsSlice = createSlice({
       })
       .addCase(addEventAsync.fulfilled, (state, action) => {
         state.items.push(action.payload)
-        state.lastUpdated = Date.now()
+        state.lastUpdated = getSafeTimestamp()
       })
       .addCase(updateEventAsync.fulfilled, (state, action) => {
         const index = state.items.findIndex((event) => event.id === action.payload.id)
         if (index !== -1) {
           state.items[index] = action.payload
         }
-        state.lastUpdated = Date.now()
+        state.lastUpdated = getSafeTimestamp()
       })
       .addCase(deleteEventAsync.fulfilled, (state, action) => {
         state.items = state.items.filter((event) => event.id !== action.payload)
-        state.lastUpdated = Date.now()
+        state.lastUpdated = getSafeTimestamp()
       })
   },
 })

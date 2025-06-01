@@ -39,7 +39,7 @@ export function ChildStatsSummary() {
       try {
         setIsLoading(true)
         setError(null)
-        console.log(`Fetching comprehensive stats for child ID: ${selectedChild.id}`)
+        // console.log(`Fetching comprehensive stats for child ID: ${selectedChild.id}`)
 
         // Fetch all events for the child
         const response = await fetch(`/api/children/${selectedChild.id}/events`, {
@@ -55,7 +55,7 @@ export function ChildStatsSummary() {
         }
 
         const events = await response.json()
-        console.log(`Received ${events.length} events for stats calculation`)
+        // console.log(`Received ${events.length} events for stats calculation`)
 
         // Calculate age
         const birthDate = new Date(selectedChild.dateOfBirth)
