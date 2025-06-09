@@ -17,12 +17,14 @@ import { Trash2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@clerk/nextjs"
+import { useChildContext } from "@/contexts/child-context"
 
 export function RemoveSeededData() {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
   const { isLoaded, isSignedIn } = useAuth()
+  const { triggerRefresh, setSelectedChild } = useChildContext()
 
   const handleRemoveSeededData = async () => {
     try {
@@ -41,11 +43,29 @@ export function RemoveSeededData() {
         title: "Success",
         description: "All seeded data has been removed. You can now start adding your own data.",
         variant: "default",
-      })
-
-      // Redirect to dashboard
-      router.push("/dashboard")
-      router.refresh()
+      })      // Reset context: clear selected child and trigger refresh
+      setSelectedChild(null)
+      // Clear ALL localStorage data to ensure fresh state
+      if (typeof window !== "undefined") {
+        // Clear all child-related localStorage items
+        localStorage.removeItem("selectedChildId")
+        localStorage.removeItem("lastSelectedChild")
+        localStorage.removeItem("childrenCache")
+        // Set tutorial flags to prevent re-seeding
+        localStorage.setItem("tutorial-completed", "true")
+        // Try to set first-login flag for current user if available
+        const userId = localStorage.getItem("clerk-db-user-id") || localStorage.getItem("userId")
+        if (userId) {
+          localStorage.setItem(`user-${userId}-first-login`, "true")
+        }
+      }
+      // Trigger refresh and wait for it to complete
+      triggerRefresh()
+      
+      // Hard reload to ensure completely fresh state
+      setTimeout(() => {
+        window.location.reload()
+      }, 500)
     } catch (error) {
       console.error("Error removing seeded data:", error)
       toast({

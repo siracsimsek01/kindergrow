@@ -7,31 +7,56 @@ import { seedDatabaseAction } from "@/lib/actions/seed-actions"
 import { useToast } from "@/components/ui/use-toast"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useRouter } from "next/navigation"
+import { Progress } from "@/components/ui/progress"
 
 export default function SeedPage() {
   const [isSeeding, setIsSeeding] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [progressMessage, setProgressMessage] = useState("")
   const { toast } = useToast()
   const router = useRouter()
 
+  // Simulate progress for demo (replace with real progress if backend supports it)
   const handleSeed = async () => {
     try {
       setIsSeeding(true)
+      setProgress(0)
+      setProgressMessage("Starting seeding process...")
+
+      // Simulate progress steps
+      const steps = [
+        { pct: 10, msg: "Clearing old data..." },
+        { pct: 30, msg: "Creating children..." },
+        { pct: 50, msg: "Generating feeding events..." },
+        { pct: 65, msg: "Generating sleep events..." },
+        { pct: 75, msg: "Generating diaper events..." },
+        { pct: 85, msg: "Generating growth, medication, temperature..." },
+        { pct: 100, msg: "Finalizing..." },
+      ]
+      for (const step of steps) {
+        setProgress(step.pct)
+        setProgressMessage(step.msg)
+        await new Promise((res) => setTimeout(res, 400))
+      }
+
       const result = await seedDatabaseAction()
 
       if (result.success) {
+        setProgress(100)
+        setProgressMessage("Seeding complete!")
         toast({
           title: "Success",
           description: "Database seeded successfully with sample data.",
         })
-
-        // Redirect to dashboard after successful seeding
         setTimeout(() => {
           router.push("/dashboard")
-        }, 2000)
+        }, 1500)
       } else {
         throw new Error(result.error || "Failed to seed database")
       }
     } catch (error) {
+      setProgress(0)
+      setProgressMessage("")
       console.error("Error seeding database:", error)
       toast({
         title: "Error",
@@ -64,6 +89,12 @@ export default function SeedPage() {
               <strong>Warning:</strong> This will delete any existing children and events data in your account.
             </p>
           </div>
+          {isSeeding && (
+            <div className="mt-6 space-y-2">
+              <Progress value={progress} />
+              <div className="text-xs text-muted-foreground text-center">{progressMessage}</div>
+            </div>
+          )}
         </CardContent>
         <CardFooter>
           <Button onClick={handleSeed} disabled={isSeeding} className="w-full">

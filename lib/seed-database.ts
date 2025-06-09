@@ -4,35 +4,35 @@ import { auth } from "@clerk/nextjs/server"
 import connectToDatabase from "@/lib/mongodb"
 import { addDays, subMonths } from "date-fns"
 
-// Seed data constants
+// Seed data constants with updated birth dates to create more realistic ages for 2025
 const CHILDREN = [
   {
     name: "Emma",
-    dateOfBirth: "2022-03-15",
+    dateOfBirth: "2021-06-15", // ~4 years old
     sex: "Female",
   },
   {
-    name: "Noah",
-    dateOfBirth: "2021-07-22",
+    name: "Noah", 
+    dateOfBirth: "2022-08-22", // ~2.8 years old
     sex: "Male",
   },
   {
     name: "Olivia",
-    dateOfBirth: "2023-01-10",
+    dateOfBirth: "2023-12-10", // ~1.5 years old
     sex: "Female",
   },
   {
     name: "Liam",
-    dateOfBirth: "2022-11-05",
+    dateOfBirth: "2024-08-15", // ~9 months old
     sex: "Male",
   },
 ]
 
-// Event type distributions
-const FEEDING_TYPES = ["breast", "formula", "solid", "other"]
-const DIAPER_TYPES = ["wet", "dirty", "both"]
-const SLEEP_QUALITY = ["good", "fair", "poor"]
-const MEDICATION_TYPES = ["acetaminophen", "ibuprofen", "antibiotic", "antihistamine", "vitamin"]
+// Event type distributions - improved variety
+const FEEDING_TYPES = ["breast", "formula", "solid", "snack", "water"]
+const DIAPER_TYPES = ["Wet", "Dirty", "Mixed", "Dry"]
+const SLEEP_QUALITY = ["good", "fair", "poor", "excellent"]
+const MEDICATION_TYPES = ["acetaminophen", "ibuprofen", "antibiotic", "antihistamine", "vitamin", "probiotic"]
 
 // Helper function to generate a random number between min and max
 function randomBetween(min: number, max: number): number {
@@ -55,20 +55,61 @@ async function generateFeedingEvents(childId: string, parentId: string, startDat
   let currentDate = new Date(startDate)
 
   while (currentDate <= endDate) {
-    // Generate 4-8 feeding events per day
-    const feedingsPerDay = randomBetween(4, 8)
+    // Generate realistic feeding times throughout the day
+    const feedingTimes = []
+    
+    // Early morning feeding (5-7 AM)
+    feedingTimes.push(randomBetween(5, 7))
+    
+    // Morning feeding (8-10 AM)
+    feedingTimes.push(randomBetween(8, 10))
+    
+    // Lunch feeding (11-13 PM)
+    feedingTimes.push(randomBetween(11, 13))
+    
+    // Afternoon feeding (14-16 PM)
+    feedingTimes.push(randomBetween(14, 16))
+    
+    // Dinner feeding (17-19 PM)
+    feedingTimes.push(randomBetween(17, 19))
+    
+    // Evening feeding (20-22 PM)
+    feedingTimes.push(randomBetween(20, 22))
+    
+    // Optional late night feeding (23-1 AM)
+    if (Math.random() < 0.7) {
+      feedingTimes.push(randomBetween(23, 24))
+    }
 
-    for (let i = 0; i < feedingsPerDay; i++) {
+    for (const hour of feedingTimes) {
       const feedingType = randomItem(FEEDING_TYPES)
       const feedingTime = new Date(currentDate)
-      feedingTime.setHours(randomBetween(0, 23), randomBetween(0, 59))
+      feedingTime.setHours(hour, randomBetween(0, 59))
 
       const endTime = new Date(feedingTime)
-      endTime.setMinutes(endTime.getMinutes() + randomBetween(10, 30))
+      endTime.setMinutes(endTime.getMinutes() + randomBetween(15, 45))
 
-      const amount = feedingType === "breast" ? null : randomBetween(2, 8)
+      // More realistic amounts based on feeding type
+      let amount = null
+      let unit = ""
+      
+      if (feedingType === "breast") {
+        amount = null // No amount tracking for breastfeeding
+      } else if (feedingType === "formula") {
+        amount = randomBetween(60, 240) // 60-240ml
+        unit = "ml"
+      } else if (feedingType === "solid") {
+        amount = randomBetween(2, 8) // 2-8 tablespoons
+        unit = "tbsp"
+      } else if (feedingType === "snack") {
+        amount = randomBetween(1, 3) // 1-3 servings
+        unit = "serving"
+      } else if (feedingType === "water") {
+        amount = randomBetween(30, 120) // 30-120ml
+        unit = "ml"
+      }
 
-      const details = `Type: ${feedingType}${amount ? `\nAmount: ${amount}` : ""}\nNotes: Regular feeding`
+      const details = `Type: ${feedingType}${amount ? `\nAmount: ${amount}${unit}` : ""}\nNotes: Regular feeding`
 
       const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
       const now = new Date().toISOString()
@@ -104,85 +145,81 @@ async function generateSleepEvents(childId: string, parentId: string, startDate:
   let currentDate = new Date(startDate)
 
   while (currentDate <= endDate) {
-    // Generate 2-4 sleep events per day
-    const sleepsPerDay = randomBetween(2, 4)
+    // Generate realistic sleep patterns: 1 main night sleep + 1-2 naps
+    const sleepEvents = []
 
-    for (let i = 0; i < sleepsPerDay; i++) {
-      const sleepQuality = randomItem(SLEEP_QUALITY)
-      const sleepTime = new Date(currentDate)
+    // Main night sleep (varies by child's routine)
+    const bedtime = new Date(currentDate)
+    bedtime.setHours(randomBetween(19, 21), randomBetween(0, 59)) // 7-9 PM bedtime
 
-      // Distribute sleep throughout the day
-      if (i === 0) {
-        // Night sleep (continues from previous day)
-        sleepTime.setHours(0, 0)
-        const endTime = new Date(sleepTime)
-        endTime.setHours(randomBetween(6, 8), randomBetween(0, 59))
+    const wakeTime = new Date(bedtime)
+    wakeTime.setDate(wakeTime.getDate() + 1)
+    wakeTime.setHours(randomBetween(6, 8), randomBetween(0, 59)) // 6-8 AM wake time
 
-        const details = `Quality: ${sleepQuality}\nNotes: Night sleep`
+    const nightSleepQuality = randomItem(SLEEP_QUALITY)
+    
+    sleepEvents.push({
+      startTime: bedtime,
+      endTime: wakeTime,
+      quality: nightSleepQuality,
+      type: "night sleep"
+    })
 
-        const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-        const now = new Date().toISOString()
+    // Morning nap (if child is young enough)
+    if (Math.random() < 0.7) { // 70% chance of morning nap
+      const morningNapStart = new Date(currentDate)
+      morningNapStart.setHours(randomBetween(9, 11), randomBetween(0, 59))
+      
+      const morningNapEnd = new Date(morningNapStart)
+      morningNapEnd.setMinutes(morningNapEnd.getMinutes() + randomBetween(45, 120)) // 45min-2hr nap
 
-        events.push({
-          id: eventId,
-          childId,
-          parentId,
-          eventType: "sleeping",
-          startTime: sleepTime.toISOString(),
-          endTime: endTime.toISOString(),
-          details,
-          timestamp: sleepTime.toISOString(),
-          createdAt: now,
-          updatedAt: now,
-        })
-      } else if (i === sleepsPerDay - 1) {
-        // Night sleep (continues to next day)
-        sleepTime.setHours(randomBetween(19, 21), randomBetween(0, 59))
-        const endTime = new Date(sleepTime)
-        endTime.setDate(endTime.getDate() + 1)
-        endTime.setHours(randomBetween(6, 8), randomBetween(0, 59))
+      const morningNapQuality = randomItem(SLEEP_QUALITY)
+      
+      sleepEvents.push({
+        startTime: morningNapStart,
+        endTime: morningNapEnd,
+        quality: morningNapQuality,
+        type: "morning nap"
+      })
+    }
 
-        const details = `Quality: ${sleepQuality}\nNotes: Night sleep`
+    // Afternoon nap
+    if (Math.random() < 0.8) { // 80% chance of afternoon nap
+      const afternoonNapStart = new Date(currentDate)
+      afternoonNapStart.setHours(randomBetween(13, 15), randomBetween(0, 59))
+      
+      const afternoonNapEnd = new Date(afternoonNapStart)
+      afternoonNapEnd.setMinutes(afternoonNapEnd.getMinutes() + randomBetween(60, 180)) // 1-3hr nap
 
-        const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-        const now = new Date().toISOString()
+      const afternoonNapQuality = randomItem(SLEEP_QUALITY)
+      
+      sleepEvents.push({
+        startTime: afternoonNapStart,
+        endTime: afternoonNapEnd,
+        quality: afternoonNapQuality,
+        type: "afternoon nap"
+      })
+    }
 
-        events.push({
-          id: eventId,
-          childId,
-          parentId,
-          eventType: "sleeping",
-          startTime: sleepTime.toISOString(),
-          endTime: endTime.toISOString(),
-          details,
-          timestamp: sleepTime.toISOString(),
-          createdAt: now,
-          updatedAt: now,
-        })
-      } else {
-        // Nap during the day
-        sleepTime.setHours(randomBetween(9, 18), randomBetween(0, 59))
-        const endTime = new Date(sleepTime)
-        endTime.setMinutes(endTime.getMinutes() + randomBetween(30, 120))
+    // Create database entries for each sleep event
+    for (const sleepEvent of sleepEvents) {
+      const details = `Quality: ${sleepEvent.quality}\nType: ${sleepEvent.type}\nDuration: ${Math.round((sleepEvent.endTime.getTime() - sleepEvent.startTime.getTime()) / (1000 * 60))} minutes\nNotes: Regular sleep pattern`
 
-        const details = `Quality: ${sleepQuality}\nNotes: Daytime nap`
+      const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
+      const now = new Date().toISOString()
 
-        const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
-        const now = new Date().toISOString()
-
-        events.push({
-          id: eventId,
-          childId,
-          parentId,
-          eventType: "sleeping",
-          startTime: sleepTime.toISOString(),
-          endTime: endTime.toISOString(),
-          details,
-          timestamp: sleepTime.toISOString(),
-          createdAt: now,
-          updatedAt: now,
-        })
-      }
+      events.push({
+        id: eventId,
+        childId,
+        parentId,
+        eventType: "sleeping",
+        startTime: sleepEvent.startTime.toISOString(),
+        endTime: sleepEvent.endTime.toISOString(),
+        details,
+        timestamp: sleepEvent.startTime.toISOString(),
+        createdAt: now,
+        updatedAt: now,
+      })
     }
 
     // Move to next day
@@ -259,7 +296,7 @@ async function generateGrowthEvents(
   while (currentDate <= endDate) {
     const growthTime = new Date(currentDate)
     growthTime.setDate(randomBetween(1, 28)) // Random day of the month
-    growthTime.setHours(randomBetween(8, 20), randomBetween(0, 59))
+    growthTime.setHours(randomBetween(8, 18), randomBetween(0, 59)) // Doctor visit hours
 
     // Calculate expected weight and height based on age
     // These are simplified calculations and not medically accurate
@@ -267,17 +304,17 @@ async function generateGrowthEvents(
       ageInMonthsAtStart +
       ((currentDate.getFullYear() - startDate.getFullYear()) * 12 + (currentDate.getMonth() - startDate.getMonth()))
 
-    // Weight in kg: starts around 3.5kg and increases
+    // Weight in kg: starts around 3.5kg and increases realistically
     const baseWeight = 3.5
-    const weightGain = ageInMonths < 6 ? 0.7 : ageInMonths < 12 ? 0.5 : 0.3
-    const weight = baseWeight + ageInMonths * weightGain + (Math.random() * 0.5 - 0.25)
+    const weightGain = ageInMonths < 6 ? 0.7 : ageInMonths < 12 ? 0.5 : ageInMonths < 24 ? 0.3 : 0.2
+    const weight = Math.max(3.0, baseWeight + ageInMonths * weightGain + (Math.random() * 0.5 - 0.25))
 
-    // Height in cm: starts around 50cm and increases
+    // Height in cm: starts around 50cm and increases realistically
     const baseHeight = 50
-    const heightGain = ageInMonths < 6 ? 2.5 : ageInMonths < 12 ? 1.5 : 1.0
-    const height = baseHeight + ageInMonths * heightGain + (Math.random() * 2 - 1)
+    const heightGain = ageInMonths < 6 ? 2.5 : ageInMonths < 12 ? 1.5 : ageInMonths < 24 ? 1.0 : 0.8
+    const height = Math.max(45, baseHeight + ageInMonths * heightGain + (Math.random() * 2 - 1))
 
-    const details = `Weight: ${weight.toFixed(2)}\nHeight: ${height.toFixed(1)}\nNotes: Monthly checkup`
+    const details = `Weight: ${weight.toFixed(2)}\nHeight: ${height.toFixed(1)}\nNotes: Monthly checkup - growing well`
 
     const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
     const now = new Date().toISOString()
@@ -311,28 +348,43 @@ async function generateMedicationEvents(childId: string, parentId: string, start
   const events = []
   let currentDate = new Date(startDate)
 
-  // Generate random medication events (less frequent)
+  // Generate random medication events (less frequent but realistic)
   while (currentDate <= endDate) {
-    // 20% chance of medication on any given day
-    if (Math.random() < 0.2) {
-      const medicationsPerDay = randomBetween(1, 3)
+    // 15% chance of medication on any given day (children don't take medication daily)
+    if (Math.random() < 0.15) {
+      const medicationsPerDay = randomBetween(1, 2) // Usually 1, sometimes 2
 
       for (let i = 0; i < medicationsPerDay; i++) {
         const medicationType = randomItem(MEDICATION_TYPES)
         const medicationTime = new Date(currentDate)
-        medicationTime.setHours(randomBetween(8, 20), randomBetween(0, 59))
+        
+        // Medications usually given at specific times
+        const preferredHours = [8, 14, 20] // Morning, afternoon, evening
+        const hour = randomItem(preferredHours)
+        medicationTime.setHours(hour, randomBetween(0, 59))
 
-        // Dosage depends on medication type
+        // More realistic dosage based on medication type and age
         let dosage = 0
+        let unit = "ml"
+        
         if (medicationType === "acetaminophen" || medicationType === "ibuprofen") {
-          dosage = randomBetween(2, 5) * 2.5 // 5-12.5 ml
+          dosage = randomBetween(3, 8) * 1.25 // 3.75-10 ml
+          unit = "ml"
         } else if (medicationType === "antibiotic") {
-          dosage = randomBetween(1, 3) * 5 // 5-15 ml
+          dosage = randomBetween(2, 6) * 2.5 // 5-15 ml
+          unit = "ml"
+        } else if (medicationType === "vitamin") {
+          dosage = randomBetween(1, 2) // 1-2 units
+          unit = "tablet"
+        } else if (medicationType === "probiotic") {
+          dosage = 1 // Usually 1 capsule
+          unit = "capsule"
         } else {
-          dosage = randomBetween(1, 2) // 1-2 ml or tablets
+          dosage = randomBetween(2, 5) // 2-5 ml
+          unit = "ml"
         }
 
-        const details = `Medication: ${medicationType}\nDosage: ${dosage}\nFrequency: once\nInstructions: As needed for symptoms`
+        const details = `Medication: ${medicationType}\nDosage: ${dosage} ${unit}\nFrequency: As prescribed\nNotes: Administered as per doctor's instructions`
 
         const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
         const now = new Date().toISOString()
@@ -368,18 +420,18 @@ async function generateTemperatureEvents(childId: string, parentId: string, star
   const events = []
   let currentDate = new Date(startDate)
 
-  // Generate temperature events (weekly routine + when sick)
+  // Generate temperature events (routine checks + illness monitoring)
   while (currentDate <= endDate) {
-    // Weekly routine check (every 7 days)
+    // Weekly routine check (every 7 days on random weekday)
     if (currentDate.getDay() === 0) {
-      // Sunday
+      // Sunday - weekly check
       const tempTime = new Date(currentDate)
-      tempTime.setHours(randomBetween(8, 20), randomBetween(0, 59))
+      tempTime.setHours(randomBetween(9, 11), randomBetween(0, 59)) // Morning check
 
-      // Normal temperature with slight variation
-      const temp = 36.5 + (Math.random() * 0.6 - 0.3)
+      // Normal temperature with slight variation (36.1-37.2°C)
+      const temp = 36.5 + (Math.random() * 0.7 - 0.4)
 
-      const details = `Temperature: ${temp.toFixed(1)}\nUnit: celsius\nNotes: Routine check`
+      const details = `Temperature: ${temp.toFixed(1)}°C\nMethod: Digital thermometer\nLocation: Oral\nNotes: Weekly routine check - normal`
 
       const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
       const now = new Date().toISOString()
@@ -399,19 +451,20 @@ async function generateTemperatureEvents(childId: string, parentId: string, star
       })
     }
 
-    // Occasional fever (5% chance on any day)
-    if (Math.random() < 0.05) {
-      // Generate 2-4 temperature readings for the fever
-      const readingsCount = randomBetween(2, 4)
+    // Occasional fever monitoring (3% chance on any day)
+    if (Math.random() < 0.03) {
+      // Generate 2-5 temperature readings throughout the day when child is sick
+      const readingsCount = randomBetween(2, 5)
 
       for (let i = 0; i < readingsCount; i++) {
         const tempTime = new Date(currentDate)
-        tempTime.setHours(randomBetween(8, 20), randomBetween(0, 59))
+        const hour = randomBetween(8, 21) // Throughout the day
+        tempTime.setHours(hour, randomBetween(0, 59))
 
-        // Fever temperature
-        const temp = 37.8 + Math.random() * 1.2
+        // Fever temperature (37.8-39.5°C) with some variation
+        const temp = 37.8 + Math.random() * 1.7
 
-        const details = `Temperature: ${temp.toFixed(1)}\nUnit: celsius\nNotes: Fever check`
+        const details = `Temperature: ${temp.toFixed(1)}°C\nMethod: Digital thermometer\nLocation: ${randomItem(['Oral', 'Underarm', 'Forehead'])}\nNotes: Monitoring fever - child feeling unwell`
 
         const eventId = `event_${Math.random().toString(36).substr(2, 9)}`
         const now = new Date().toISOString()
@@ -480,12 +533,15 @@ export async function seedDatabase() {
     const childIds = childrenData.map((child) => child.id)
     await db.collection("events").deleteMany({ childId: { $in: childIds } })
 
-    // Generate a year of data for each child
-    const endDate = new Date()
-    const startDate = subMonths(endDate, 12) // 1 year of data
+    // Generate data for the past 6 months (more recent and relevant data)
+    const endDate = new Date() // Current date (June 2, 2025)
+    const startDate = subMonths(endDate, 6) // 6 months of data instead of 12
+
+    console.log(`Generating events from ${startDate.toISOString()} to ${endDate.toISOString()}`)
 
     for (let i = 0; i < childrenData.length; i++) {
       const child = childrenData[i]
+      console.log(`Generating events for child: ${child.name} (${CHILDREN[i].dateOfBirth})`)
 
       // Generate events for each child
       await generateFeedingEvents(child.id, `user_${userId}`, startDate, endDate, db)

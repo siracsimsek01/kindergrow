@@ -3,6 +3,7 @@
 import { SignUp } from "@clerk/nextjs"
 import Image from "next/image"
 import { useSearchParams } from "next/navigation"
+import logo from "@/public/images/logo.png"
 
 export default function SignUpPage() {
   const searchParams = useSearchParams()
@@ -22,7 +23,7 @@ export default function SignUpPage() {
         <div className="relative z-10 max-w-md text-center">
           <div className="flex justify-center mb-6">
             <div className="relative w-[120px] h-[120px]">
-              <Image src="/logo.png" alt="KinderGrow Logo" fill className="object-contain" priority />
+              <Image src={logo} alt="KinderGrow Logo" fill className="object-contain" priority />
             </div>
           </div>
           <h1 className="text-4xl font-bold text-[#cbd5e1] mb-4">Join KinderGrow Today</h1>

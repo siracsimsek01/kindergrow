@@ -4,6 +4,7 @@ import { SignIn } from "@clerk/nextjs";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useAuth } from "@clerk/nextjs"; // Add this import
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,10 +28,17 @@ interface LastUser {
 export default function SignInPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { isSignedIn } = useAuth(); // Add this hook
   const redirectUrl = searchParams?.get("redirect_url") || "/dashboard";
   const [lastUser, setLastUser] = useState<LastUser | null>(null);
 
   useEffect(() => {
+    // If user is already signed in, redirect immediately
+    if (isSignedIn) {
+      router.push(redirectUrl);
+      return;
+    }
+
     // Check for last signed in user in localStorage
     const storedUser = localStorage.getItem("lastSignedInUser");
     if (storedUser) {
@@ -38,12 +46,21 @@ export default function SignInPage() {
         setLastUser(JSON.parse(storedUser));
       } catch (e) {
         console.error("Error parsing stored user:", e);
+        // Clear invalid stored data
+        localStorage.removeItem("lastSignedInUser");
       }
     }
-  }, []);
+  }, [isSignedIn, router, redirectUrl]);
 
   const handleContinueAsUser = () => {
-    router.push("/dashboard");
+    // Only redirect if user is actually signed in
+    if (isSignedIn) {
+      router.push("/dashboard");
+    } else {
+      // Clear the invalid stored user data and hide the continue card
+      localStorage.removeItem("lastSignedInUser");
+      setLastUser(null);
+    }
   };
 
   return (
@@ -119,14 +136,13 @@ export default function SignInPage() {
                 footer: "bg-[#1e293b] border-t-0 text-[#94a3b8]",
               },
             }}
-            routing="path"
-            path="/sign-in"
+            routing="hash"
             signUpUrl="/sign-up"
             redirectUrl={redirectUrl}
           />
 
-          {/* "Continue as" card for returning users - moved to bottom */}
-          {lastUser && (
+          {/* "Continue as" card for returning users - only show if user has valid session */}
+          {lastUser && !isSignedIn && (
             <Card className="mt-6 bg-[#1e293b] border-[#334155] text-[#cbd5e1] flex flex-col gap-3 w-[400px]">
               <CardHeader className="pb-2">
                 <CardTitle className="text-[#cbd5e1] text-lg">

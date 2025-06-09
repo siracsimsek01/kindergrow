@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useState, useContext, useEffect, useCallback, useRef } from "react"
+import { createContext, useState, useContext, useEffect, useCallback, useRef, useMemo } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/components/ui/use-toast"
 import { AddChildModal } from "@/components/add-child-modal"
@@ -119,7 +119,14 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
     setIsRefreshing(true)
     setLastUpdated(getSafeTimestamp())
     setRefreshKey(prev => prev + 1)
-
+    setChildren([]) // Clear children immediately on refresh
+    setSelectedChild(null) // Clear selected child immediately on refresh
+    // Clear localStorage as well
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("selectedChildId")
+      localStorage.removeItem("lastSelectedChild")
+      localStorage.removeItem("childrenCache")
+    }
     // Reduce the timeout to make the refresh feel more responsive
     setTimeout(() => {
       setIsRefreshing(false)
@@ -128,15 +135,19 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
 
   // Function to add a child directly to the context without full refresh
   const addChildDirectly = useCallback((newChild: any) => {
+    // Normalize child object to always have both id and _id as strings
+    const normalizedChild = {
+      ...newChild,
+      id: newChild.id || newChild._id?.toString(),
+      _id: newChild._id?.toString() || newChild.id,
+    }
     setChildren(prev => {
-      const updated = [...prev, newChild]
-      
+      const updated = [...prev, normalizedChild]
       // If this is the first child, select it
       if (prev.length === 0) {
-        setSelectedChild(newChild)
-        localStorage.setItem("selectedChildId", newChild._id)
+        setSelectedChild(normalizedChild)
+        localStorage.setItem("selectedChildId", normalizedChild._id)
       }
-      
       return updated
     })
   }, [])
@@ -237,7 +248,7 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
     }
   }, [selectedChild])
 
-  const contextValue = {
+  const contextValue = useMemo(() => ({
     selectedChild,
     setSelectedChild,
     children,
@@ -255,7 +266,24 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
     enableAutoRefresh,
     autoRefreshEnabled,
     addChildDirectly,
-  }
+  }), [
+    selectedChild,
+    children,
+    isLoading,
+    isAddEventModalOpen,
+    handleSetIsAddEventModalOpen,
+    isAddChildModalOpen,
+    handleSetIsAddChildModalOpen,
+    isEventTypeSelectorOpen,
+    handleSetIsEventTypeSelectorOpen,
+    eventType,
+    lastUpdated,
+    triggerRefresh,
+    isRefreshing,
+    enableAutoRefresh,
+    autoRefreshEnabled,
+    addChildDirectly,
+  ])
 
   // Handle success callbacks from modals
   const handleChildAdded = useCallback(() => {

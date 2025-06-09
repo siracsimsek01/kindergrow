@@ -7,12 +7,12 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhook", 
 ])
 
-
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) await auth.protect()
 })
 
 export const config = {
-  // Matcher ignoring _next, static and api/webhook
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/webhook).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|api/webhook).*)",
+  ],
 }

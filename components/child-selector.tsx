@@ -18,14 +18,8 @@ import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function ChildSelector() {
-  const { selectedChild, setSelectedChild, children, isLoading, setIsAddChildModalOpen, triggerRefresh } =
-    useChildContext()
+  const { selectedChild, setSelectedChild, children, isLoading, setIsAddChildModalOpen } = useChildContext()
   const [open, setOpen] = useState(false)
-
-  // Refresh the child list when the component mounts
-  useEffect(() => {
-    triggerRefresh()
-  }, [triggerRefresh])
 
   const handleAddChild = useCallback(() => {
     setOpen(false)
@@ -33,7 +27,7 @@ export function ChildSelector() {
     setTimeout(() => {
       setIsAddChildModalOpen(true)
     }, 100)
-  }, [setOpen, setIsAddChildModalOpen])
+  }, [setIsAddChildModalOpen])
 
   if (isLoading) {
     return (

@@ -15,13 +15,13 @@ async function checkChildOwnership({ db, childId, userId } : checkChildOwnership
 }
 
 // GET: Get all diaper events for a child (optional date filters)
-export async function GET(request: NextRequest, { params }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership({ db, childId, userId })) {
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
     }
@@ -31,10 +31,10 @@ export async function GET(request: NextRequest, { params }) {
     const endDate = searchParams.get("endDate");
 
     const query: any = { childId, eventType: "diaper" };
-    if (startDate) query.changeTime = { $gte: new Date(startDate).toISOString() };
-    if (endDate) query.changeTime = { ...(query.changeTime || {}), $lte: new Date(endDate).toISOString() };
+    if (startDate) query.timestamp = { $gte: new Date(startDate).toISOString() };
+    if (endDate) query.timestamp = { ...(query.timestamp || {}), $lte: new Date(endDate).toISOString() };
 
-    const events = await db.collection("events").find(query).sort({ changeTime: -1 }).toArray();
+    const events = await db.collection("events").find(query).sort({ timestamp: -1 }).toArray();
     return NextResponse.json(events);
   } catch (error) {
     console.error("[GET] /api/children/[id]/diaper error:", error);
@@ -43,13 +43,13 @@ export async function GET(request: NextRequest, { params }) {
 }
 
 // POST: Create new diaper event
-export async function POST(request: NextRequest, { params }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership({ db, childId, userId })) {
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
     }
@@ -81,13 +81,13 @@ export async function POST(request: NextRequest, { params }) {
 }
 
 // PATCH: Update an existing diaper event
-export async function PATCH(request: NextRequest, { params }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership({ db, childId, userId })) {
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
     }

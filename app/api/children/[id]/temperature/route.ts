@@ -9,13 +9,13 @@ async function checkChildOwnership(db, childId, userId) {
 }
 
 // GET: Fetch temperature records (optionally filter by date range)
-export async function GET(request: NextRequest, { params }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
 
@@ -72,13 +72,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 }
 
 // PATCH: Update a temperature record (eventId via query param)
-export async function PATCH(request: NextRequest, { params }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
 
@@ -109,13 +109,13 @@ export async function PATCH(request: NextRequest, { params }) {
 }
 
 // DELETE: Remove a temperature record (eventId via query param)
-export async function DELETE(request: NextRequest, { params }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { db } = await connectToDatabase();
-    const childId = params.id;
+    const { id: childId } = await params;
     if (!await checkChildOwnership(db, childId, userId))
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
 

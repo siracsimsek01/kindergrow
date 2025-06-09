@@ -25,10 +25,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     console.log(`Generating ${reportType} report from ${startDate} to ${endDate} for child ${childId}`)
 
     // Verify child belongs to user
-    const child = await db.collection("children").findOne({
-      _id: new ObjectId(childId),
-      parentId: userId
-    });
+    let child;
+    if (/^[a-f\d]{24}$/i.test(childId)) {
+      child = await db.collection("children").findOne({ _id: new ObjectId(childId), parentId: userId });
+    } else {
+      child = await db.collection("children").findOne({ id: childId, parentId: userId });
+    }
 
     if (!child) {
       return NextResponse.json({ error: "Child not found" }, { status: 404 })
@@ -72,7 +74,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     const pdfBuffer = await generateReport(reportType, reportData, startDate, endDate, child.name)
 
-    return new NextResponse(pdfBuffer, {
+    // Use native Response for binary data
+    return new Response(pdfBuffer, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
