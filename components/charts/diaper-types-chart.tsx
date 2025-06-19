@@ -24,14 +24,8 @@ export function DiaperTypesChart({ events, selectedChild, simplified = false }: 
   // Update the useEffect to correctly handle the actual data
   useEffect(() => {
     if (!events || events.length === 0) {
-      // Create sample data for demonstration
-      const sampleData = [
-        { name: "Wet", value: 45, color: "#3b82f6" },
-        { name: "Dirty", value: 30, color: "#f59e0b" },
-        { name: "Mixed", value: 15, color: "#8b5cf6" },
-        { name: "Dry", value: 10, color: "#10b981" },
-      ]
-      setData(sampleData)
+      // Show empty state instead of sample data
+      setData([])
       return
     }
 
@@ -59,15 +53,9 @@ export function DiaperTypesChart({ events, selectedChild, simplified = false }: 
       { name: "Dry", value: typeCounts.Dry, color: "#10b981" },
     ]
 
-    // If all values are 0, use sample data
+    // If all values are 0, show empty state instead of sample data
     if (chartData.every((item) => item.value === 0)) {
-      const sampleData = [
-        { name: "Wet", value: 45, color: "#3b82f6" },
-        { name: "Dirty", value: 30, color: "#f59e0b" },
-        { name: "Mixed", value: 15, color: "#8b5cf6" },
-        { name: "Dry", value: 10, color: "#10b981" },
-      ]
-      setData(sampleData)
+      setData([])
     } else {
       // Only include types with values > 0 for the actual chart
       setData(chartData.filter((item) => item.value > 0))
@@ -104,42 +92,9 @@ export function DiaperTypesChart({ events, selectedChild, simplified = false }: 
 
   // Update the render function to handle empty data better
   if (!events || events.length === 0 || data.length === 0) {
-    // Return sample pie chart instead of "No data" message
-    const sampleData = [
-      { name: "Wet", value: 45, color: "#3b82f6" },
-      { name: "Dirty", value: 30, color: "#f59e0b" },
-      { name: "Mixed", value: 15, color: "#8b5cf6" },
-      { name: "Dry", value: 10, color: "#10b981" },
-    ]
-
     return (
-      <div className="w-full h-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={sampleData}
-              cx="50%"
-              cy="50%"
-              innerRadius={simplified ? 0 : 60}
-              outerRadius={simplified ? 80 : 90}
-              paddingAngle={2}
-              dataKey="value"
-              label={simplified ? false : ({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              labelLine={simplified ? false : true}
-            >
-              {sampleData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip />} />
-            <Legend
-              layout={simplified ? "horizontal" : "vertical"}
-              verticalAlign={simplified ? "bottom" : "middle"}
-              align={simplified ? "center" : "right"}
-              iconType="circle"
-            />
-          </PieChart>
-        </ResponsiveContainer>
+      <div className="flex h-full items-center justify-center rounded-md border border-dashed">
+        <p className="text-sm text-muted-foreground">No diaper data available for {selectedChild?.name}</p>
       </div>
     )
   }

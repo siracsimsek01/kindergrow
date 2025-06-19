@@ -148,10 +148,26 @@ export function MedicationSchedule({
     }
   }
 
-  if (calendarDays.length === 0 || medicationSchedule.length === 0) {
+  if (calendarDays.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-muted-foreground">Loading medication schedule...</p>
+      </div>
+    )
+  }
+
+  if (medications.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-muted-foreground">No active medications to display</p>
+      </div>
+    )
+  }
+
+  if (medicationSchedule.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-muted-foreground">No active medications for the selected time period</p>
       </div>
     )
   }

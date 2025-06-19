@@ -33,9 +33,13 @@ export default function SignInPage() {
   const [lastUser, setLastUser] = useState<LastUser | null>(null);
 
   useEffect(() => {
-    // If user is already signed in, redirect immediately
+    // If user is already signed in, redirect immediately ONLY if they came from a protected route
     if (isSignedIn) {
-      router.push(redirectUrl);
+      // Check if this is an automatic redirect or explicit navigation
+      const autoRedirect = searchParams?.get("auto_redirect") === "true"
+      if (autoRedirect) {
+        router.push(redirectUrl);
+      }
       return;
     }
 
@@ -50,7 +54,7 @@ export default function SignInPage() {
         localStorage.removeItem("lastSignedInUser");
       }
     }
-  }, [isSignedIn, router, redirectUrl]);
+  }, [isSignedIn, router, redirectUrl, searchParams]);
 
   const handleContinueAsUser = () => {
     // Only redirect if user is actually signed in

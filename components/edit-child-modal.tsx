@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, Trash2 } from "lucide-react"
 import { useChildContext } from "@/contexts/child-context"
 import {
   Dialog,
@@ -15,6 +15,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -44,6 +55,7 @@ interface EditChildModalProps {
 export function EditChildModal({ open, onOpenChange, child }: EditChildModalProps) {
   const { triggerRefresh } = useChildContext()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
   const [initialized, setInitialized] = useState(false)
 
@@ -107,6 +119,41 @@ export function EditChildModal({ open, onOpenChange, child }: EditChildModalProp
     }
   }
 
+  async function handleDeleteChild() {
+    if (!child) return
+
+    try {
+      setIsDeleting(true)
+      const response = await fetch(`/api/children/${child.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete child")
+      }
+
+      toast({
+        title: "Child deleted",
+        description: `${child.name} has been deleted successfully.`,
+      })
+
+      triggerRefresh()
+      onOpenChange(false)
+    } catch (error) {
+      console.error("Error deleting child:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete child. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -148,7 +195,7 @@ export function EditChildModal({ open, onOpenChange, child }: EditChildModalProp
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
+                    <PopoverContent className="w-auto p-0 z-[99999]" align="start">
                       <Calendar
                         mode="single"
                         selected={field.value}
@@ -198,17 +245,72 @@ export function EditChildModal({ open, onOpenChange, child }: EditChildModalProp
               )}
             />
 
-            <DialogFooter>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Updating...
-                  </>
-                ) : (
-                  "Update Child"
-                )}
-              </Button>
+            <DialogFooter className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:gap-0">
+              <div className="flex justify-start">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      disabled={isSubmitting || isDeleting}
+                      className="flex items-center gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete Child
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Child</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete <strong>{child?.name}</strong>? This action cannot be undone. 
+                        All growth data, milestones, and events associated with this child will be permanently removed.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={handleDeleteChild}
+                        disabled={isDeleting}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {isDeleting ? (
+                          <>
+                            <LoadingSpinner size="sm" className="mr-2" />
+                            Deleting...
+                          </>
+                        ) : (
+                          "Delete Child"
+                        )}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => onOpenChange(false)}
+                  disabled={isSubmitting || isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting || isDeleting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <LoadingSpinner size="sm" className="mr-2" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Child"
+                  )}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </Form>

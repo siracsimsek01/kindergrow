@@ -49,7 +49,7 @@ export function TimePicker({ value, onChange, className }: TimePickerProps) {
           {value || "Select time"}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-4 z-[102]" align="start">
+      <PopoverContent className="w-auto p-4 z-[99999]" align="start">
         <div className="flex items-center space-x-2">
           <Input
             className="w-[4rem]"

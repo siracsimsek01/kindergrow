@@ -116,61 +116,7 @@ export default function DiaperTrackingPage() {
     fetchDiaperEvents()
   }, [selectedChild])
 
-  // Generate sample data if no data exists
-  useEffect(() => {
-    if (diaperEvents.length === 0 && !isLoading && !error && selectedChild) {
-      // Create sample data for demonstration
-      const sampleEvents: DiaperEvent[] = []
-      const today = new Date()
-
-      // Generate data for the past 60 days
-      for (let i = 60; i >= 0; i--) {
-        const date = subDays(today, i)
-
-        // Random number of diaper changes per day (1-8)
-        const changesPerDay = Math.floor(Math.random() * 8) + 1
-
-        for (let j = 0; j < changesPerDay; j++) {
-          // Random hour between 6am and 10pm
-          const hour = 6 + Math.floor(Math.random() * 16)
-          const minute = Math.floor(Math.random() * 60)
-          const eventDate = new Date(date)
-          eventDate.setHours(hour, minute)
-
-          // Random diaper type with more realistic distribution
-          const typeOptions = ["Wet", "Dirty", "Mixed", "Dry"]
-          const typeWeights = [0.5, 0.3, 0.15, 0.05] // More wet and dirty than mixed and dry
-
-          let typeIndex = 0
-          const rand = Math.random()
-          let cumulativeWeight = 0
-
-          for (let k = 0; k < typeWeights.length; k++) {
-            cumulativeWeight += typeWeights[k]
-            if (rand < cumulativeWeight) {
-              typeIndex = k
-              break
-            }
-          }
-
-          const type = typeOptions[typeIndex]
-
-          sampleEvents.push({
-            id: `sample-${i}-${j}`,
-            timestamp: eventDate.toISOString(),
-            details: `Type: ${type}\nNotes: Sample diaper change`,
-            type,
-            contents: [],
-            notes: "Sample diaper change",
-            date: new Date(eventDate),
-          })
-        }
-      }
-
-      console.log("Generated sample diaper events:", sampleEvents.length)
-      setDiaperEvents(sampleEvents)
-    }
-  }, [diaperEvents.length, isLoading, error, selectedChild])
+  // No sample data generation - show empty state when no real data exists
 
   const getDayEvents = (day: Date) => {
     return diaperEvents.filter(

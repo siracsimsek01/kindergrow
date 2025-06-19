@@ -29,7 +29,7 @@ const CHILDREN = [
 ]
 
 // Event type distributions - improved variety
-const FEEDING_TYPES = ["breast", "formula", "solid", "snack", "water"]
+const FEEDING_TYPES = ["breast", "bottle", "solid", "snack", "water"]  // Changed "formula" to "bottle" to match chart parsing
 const DIAPER_TYPES = ["Wet", "Dirty", "Mixed", "Dry"]
 const SLEEP_QUALITY = ["good", "fair", "poor", "excellent"]
 const MEDICATION_TYPES = ["acetaminophen", "ibuprofen", "antibiotic", "antihistamine", "vitamin", "probiotic"]
@@ -95,7 +95,7 @@ async function generateFeedingEvents(childId: string, parentId: string, startDat
       
       if (feedingType === "breast") {
         amount = null // No amount tracking for breastfeeding
-      } else if (feedingType === "formula") {
+      } else if (feedingType === "bottle") {  // Updated to match new feeding type
         amount = randomBetween(60, 240) // 60-240ml
         unit = "ml"
       } else if (feedingType === "solid") {
@@ -533,23 +533,26 @@ export async function seedDatabase() {
     const childIds = childrenData.map((child) => child.id)
     await db.collection("events").deleteMany({ childId: { $in: childIds } })
 
-    // Generate data for the past 6 months (more recent and relevant data)
-    const endDate = new Date() // Current date (June 2, 2025)
-    const startDate = subMonths(endDate, 6) // 6 months of data instead of 12
+    // Generate comprehensive data spread across entire past year for better testing
+    const endDate = new Date() // Current date
+    const startDate = subMonths(endDate, 12) // 12 months (full year) of historical data
+    
+    // Also generate future data for testing (next 2 weeks)
+    const futureEndDate = addDays(endDate, 14) // 2 weeks into the future
 
-    console.log(`Generating events from ${startDate.toISOString()} to ${endDate.toISOString()}`)
+    console.log(`Generating events from ${startDate.toISOString()} to ${futureEndDate.toISOString()}`)
 
     for (let i = 0; i < childrenData.length; i++) {
       const child = childrenData[i]
       console.log(`Generating events for child: ${child.name} (${CHILDREN[i].dateOfBirth})`)
 
-      // Generate events for each child
-      await generateFeedingEvents(child.id, `user_${userId}`, startDate, endDate, db)
-      await generateSleepEvents(child.id, `user_${userId}`, startDate, endDate, db)
-      await generateDiaperEvents(child.id, `user_${userId}`, startDate, endDate, db)
-      await generateGrowthEvents(child.id, `user_${userId}`, startDate, endDate, CHILDREN[i].dateOfBirth, db)
-      await generateMedicationEvents(child.id, `user_${userId}`, startDate, endDate, db)
-      await generateTemperatureEvents(child.id, `user_${userId}`, startDate, endDate, db)
+      // Generate events for each child (with more comprehensive data)
+      await generateFeedingEvents(child.id, `user_${userId}`, startDate, futureEndDate, db)
+      await generateSleepEvents(child.id, `user_${userId}`, startDate, futureEndDate, db)
+      await generateDiaperEvents(child.id, `user_${userId}`, startDate, futureEndDate, db)
+      await generateGrowthEvents(child.id, `user_${userId}`, startDate, futureEndDate, CHILDREN[i].dateOfBirth, db)
+      await generateMedicationEvents(child.id, `user_${userId}`, startDate, futureEndDate, db)
+      await generateTemperatureEvents(child.id, `user_${userId}`, startDate, futureEndDate, db)
     }
 
     return { success: true, message: "Database seeded successfully" }

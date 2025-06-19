@@ -128,7 +128,7 @@ export function SleepChart() {
           </ChartContainer>
         ) : (
           <div className="h-[300px] flex items-center justify-center">
-            <p className="text-muted-foreground">No sleep data found</p>
+            <p className="text-muted-foreground">No sleep data available for {selectedChild.name}</p>
           </div>
         )}
       </CardContent>

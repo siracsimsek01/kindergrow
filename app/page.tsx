@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button"
 import { Seo } from "@/components/seo"
 import Image from "next/image"
 
+
 export default function LandingPage() {
   return (
     <>
       <Seo />
       <div className="flex flex-col min-h-screen">
         <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-14 items-center">
+          <div className="container flex h-14  items-center">
             <div className="flex items-center gap-1 font-bold">
               <Image src="/images/logo.png" alt="Logo" width={50} height={50} className="rounded-full" />
               <span className="text-lg">KinderGrow</span>
@@ -30,7 +31,7 @@ export default function LandingPage() {
         </header>
         <main className="flex-1">
           <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
-            <div className="container px-4 md:px-6">
+            <div className="container md:px-6">
               <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:grid-cols-2">
                 <div className="flex flex-col justify-center space-y-4">
                   <div className="space-y-2">
@@ -57,7 +58,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center justify-center">
                   <Image
-                    src={"/images/header.png"}
+                    src="/images/header.png"
                     alt="Header Image"
                     width={500}
                     height={500}
@@ -344,7 +345,7 @@ export default function LandingPage() {
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-4">
                 <div className="flex items-center gap-1 font-bold">
-                  <Image src={"/images/logo.png"} alt="Logo" width={50} height={50} className="rounded-full" />
+                  <Image src="/images/logo.png" alt="Logo" width={50} height={50} className="rounded-full" />
                   <span className="text-lg">KinderGrow</span>
                 </div>
                 <p className="text-sm text-muted-foreground">

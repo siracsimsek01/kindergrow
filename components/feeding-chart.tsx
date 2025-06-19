@@ -77,11 +77,14 @@ export function FeedingChart() {
 
           if (dayData) {
             const details = event.details || ""
-            if (details.includes("Type: Bottle")) {
+            console.log(`Processing event on ${eventDate}:`, details)
+            
+            // Handle both old format and new format
+            if (details.includes("Type: bottle") || details.includes("Type: formula") || details.includes("Type: Bottle")) {
               dayData.Bottle++
-            } else if (details.includes("Type: Breast")) {
+            } else if (details.includes("Type: breast") || details.includes("Type: Breast")) {
               dayData.Breast++
-            } else if (details.includes("Type: Solid")) {
+            } else if (details.includes("Type: solid") || details.includes("Type: Solid")) {
               dayData.Solid++
             }
           }
@@ -98,20 +101,6 @@ export function FeedingChart() {
 
     fetchData()
   }, [selectedChild, lastUpdated])
-
-  // Generate sample data if no data exists
-  useEffect(() => {
-    if (data.length > 0 && data.every((d) => d.Bottle === 0 && d.Breast === 0 && d.Solid === 0)) {
-      // Create sample data for demonstration
-      const sampleData = data.map((day, index) => ({
-        ...day,
-        Bottle: Math.floor(Math.random() * 3),
-        Breast: Math.floor(Math.random() * 4),
-        Solid: Math.floor(Math.random() * 2),
-      }))
-      setData(sampleData)
-    }
-  }, [data])
 
   const CustomTooltip = ({ active, payload, label }: {
     active?: boolean;
@@ -151,6 +140,16 @@ export function FeedingChart() {
     return null
   }
 
+  // Debug log for feeding chart data
+  console.log("Feeding chart data", data, selectedChild);
+  console.log("Feeding chart data has values:", data.map(d => ({
+    date: d.formattedDate,
+    bottle: d.Bottle,
+    breast: d.Breast,
+    solid: d.Solid,
+    total: d.Bottle + d.Breast + d.Solid
+  })));
+
   if (!selectedChild) {
     return (
       <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
@@ -175,6 +174,26 @@ export function FeedingChart() {
     )
   }
 
+  // Check if we have any data at all
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
+        <p className="text-sm text-muted-foreground">No feeding data available for {selectedChild.name}</p>
+      </div>
+    )
+  }
+
+  // Check if all values are zero
+  const hasData = data.some((d) => d.Bottle > 0 || d.Breast > 0 || d.Solid > 0);
+  
+  if (!hasData) {
+    return (
+      <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
+        <p className="text-sm text-muted-foreground">No feeding events recorded in the past 7 days</p>
+      </div>
+    )
+  }
+
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -186,18 +205,51 @@ export function FeedingChart() {
             left: 0,
             bottom: 5,
           }}
+          barGap={4}
+          barCategoryGap={8}
         >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="formattedDate" />
-          <YAxis allowDecimals={false} />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+          <XAxis 
+            dataKey="formattedDate" 
+            tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+            axisLine={{ stroke: "hsl(var(--border))" }}
+            tickLine={{ stroke: "hsl(var(--border))" }}
+          />
+          <YAxis 
+            allowDecimals={false} 
+            tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+            axisLine={{ stroke: "hsl(var(--border))" }}
+            tickLine={{ stroke: "hsl(var(--border))" }}
+          />
           <Tooltip
             content={<CustomTooltip />}
-            cursor={false} // This removes the transparent hover outline
+            cursor={{ fill: "hsl(var(--muted) / 0.1)" }}
           />
-          <Legend />
-          <Bar dataKey="Bottle" name="Bottle" fill="#3b82f6" barSize={20} radius={[4, 4, 0, 0]} />
-          <Bar dataKey="Breast" name="Breast" fill="#60a5fa" barSize={20} radius={[4, 4, 0, 0]} />
-          <Bar dataKey="Solid" name="Solid" fill="#ec4899" barSize={20} radius={[4, 4, 0, 0]} />
+          <Legend 
+            wrapperStyle={{ fontSize: 12, paddingTop: 20 }}
+            iconType="rect"
+          />
+          <Bar 
+            dataKey="Bottle" 
+            name="Bottle" 
+            fill="#3b82f6" 
+            radius={[2, 2, 0, 0]} 
+            maxBarSize={40}
+          />
+          <Bar 
+            dataKey="Breast" 
+            name="Breast" 
+            fill="#60a5fa" 
+            radius={[2, 2, 0, 0]} 
+            maxBarSize={40}
+          />
+          <Bar 
+            dataKey="Solid" 
+            name="Solid" 
+            fill="#ec4899" 
+            radius={[2, 2, 0, 0]} 
+            maxBarSize={40}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -98,8 +98,52 @@ function ChartTooltipContent({ active, payload, label }: ChartTooltipContentProp
   )
 }
 
-export { ChartContainer, ChartTooltipContent, useChartContext }
-export type { ChartConfig }
+interface ChartLegendContentProps {
+  payload?: Array<{
+    value?: string
+    type?: string
+    color?: string
+    payload?: Record<string, any>
+  }>
+  nameKey?: string
+  className?: string
+}
 
-export const ChartTooltip = ChartTooltipContent
+function ChartLegendContent({ payload, nameKey, className }: ChartLegendContentProps) {
+  const { config } = useChartContext()
+
+  if (!payload?.length) {
+    return null
+  }
+
+  return (
+    <div className={cn("flex items-center justify-center gap-4", className)}>
+      {payload.map((item, index) => {
+        const key = nameKey ? item.payload?.[nameKey] : item.value
+        const configItem = config[key as string]
+        
+        return (
+          <div key={index} className="flex items-center gap-1.5">
+            <div
+              className="h-2 w-2 shrink-0 rounded-[2px]"
+              style={{
+                backgroundColor: configItem?.color || item.color,
+              }}
+            />
+            <span className="text-xs text-muted-foreground">
+              {configItem?.label || item.value}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ChartLegend({ content, ...props }: any) {
+  return content ? content : null
+}
+
+export { ChartContainer, ChartTooltipContent, ChartLegendContent, ChartLegend, useChartContext }
+export type { ChartConfig }
 

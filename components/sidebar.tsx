@@ -36,7 +36,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserButton } from "@clerk/nextjs"
 import { useState, useEffect } from "react"
-import logo from '@/public/images/logo.png'
+
 
 
 export function Sidebar({ className }: { className?: string }) {
@@ -95,7 +95,7 @@ export function Sidebar({ className }: { className?: string }) {
           </Button>
           <Link href="/dashboard" className="flex items-center">
             <div className="relative w-[40px] h-[40px]">
-              <Image src={logo} alt="KinderGrow Logo" fill className="object-contain" priority />
+              <Image src="/images/logo.png" alt="KinderGrow Logo" fill className="object-contain" priority />
             </div>
             <span className="text-xl font-semibold">KinderGrow</span>
           </Link>
@@ -127,7 +127,7 @@ export function Sidebar({ className }: { className?: string }) {
           {isOpen ? (
             <Link href="/dashboard" className="flex items-center font-semibold">
               <div className="relative">
-                <Image src={logo} alt="KinderGrow Logo" width={50} height={50} className="object-contain" priority />
+                <Image src="/images/logo.png" alt="KinderGrow Logo" width={50} height={50} className="object-contain" priority />
               </div>
               <span className="text-xl ml-1">KinderGrow</span>
             </Link>
@@ -178,7 +178,7 @@ export function Sidebar({ className }: { className?: string }) {
                       <ChevronDown className="h-4 w-4 opacity-70" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuContent align="start" className="w-48" side="right">
                     <DropdownMenuLabel>Switch Child</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {children.map((child) => (
@@ -196,7 +196,14 @@ export function Sidebar({ className }: { className?: string }) {
                       </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setIsAddChildModalOpen(true)}>
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        // Use requestAnimationFrame to prevent blocking the UI
+                        requestAnimationFrame(() => {
+                          setIsAddChildModalOpen(true)
+                        })
+                      }}
+                    >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Child
                     </DropdownMenuItem>
@@ -206,7 +213,12 @@ export function Sidebar({ className }: { className?: string }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setIsAddChildModalOpen(true)}
+                  onClick={() => {
+                    // Use requestAnimationFrame to prevent blocking the UI
+                    requestAnimationFrame(() => {
+                      setIsAddChildModalOpen(true)
+                    })
+                  }}
                   className="text-sm opacity-70"
                 >
                   <Plus className="h-4 w-4 mr-2" />

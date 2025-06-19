@@ -15,7 +15,7 @@ import type { DateRange } from "react-day-picker"
 import { ChartSkeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton-loader"
 
 export default function ReportsPage() {
-  const { selectedChild, isLoading: isChildLoading, children } = useChildContext()
+  const { selectedChild, setSelectedChild, isLoading: isChildLoading, children } = useChildContext()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("generate")
   const [reportType, setReportType] = useState("feeding")
@@ -237,12 +237,12 @@ export default function ReportsPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Child</label>
                   <Select 
-                    value={selectedChild?.id} 
+                    value={selectedChild?.id || ""} 
                     onValueChange={(value) => {
+                      console.log("Child selector changed:", value, children);
                       const child = children.find(c => c.id === value)
                       if (child) {
-                        // This assumes you have a setSelectedChild function in your context
-                        // that you can call directly here
+                        setSelectedChild(child)
                       }
                     }}
                     disabled={children.length === 0}

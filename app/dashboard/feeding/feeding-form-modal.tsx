@@ -4,7 +4,7 @@ import React from "react"
 import { format } from "date-fns"
 import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2, CalendarIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -29,7 +30,22 @@ interface DatePickerProps {
 }
 
 function DatePicker({ date, setDate, className }: DatePickerProps) {
-  return <Calendar mode="single" selected={date} onSelect={setDate} className={cn("w-full", className)} />
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground", className)}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {date ? format(date, "PPP") : <span>Pick a date</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 z-[99999]" align="start">
+        <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 interface TimePickerProps {

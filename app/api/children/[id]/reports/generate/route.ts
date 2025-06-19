@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import clientPromise from '@/lib/mongodb';
+import connectToDatabase from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { generateReport } from "@/lib/reportGenerator"
 
@@ -19,17 +19,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "Missing childId" }, { status: 400 })
     }
 
-    const { client } = await clientPromise();
-    const db = client.db(process.env.MONGO_DB);
+    const { client, db } = await connectToDatabase();
 
     console.log(`Generating ${reportType} report from ${startDate} to ${endDate} for child ${childId}`)
 
     // Verify child belongs to user
     let child;
     if (/^[a-f\d]{24}$/i.test(childId)) {
-      child = await db.collection("children").findOne({ _id: new ObjectId(childId), parentId: userId });
+      child = await db.collection("children").findOne({ _id: new ObjectId(childId), parentId: `user_${userId}` });
     } else {
-      child = await db.collection("children").findOne({ id: childId, parentId: userId });
+      child = await db.collection("children").findOne({ id: childId, parentId: `user_${userId}` });
     }
 
     if (!child) {

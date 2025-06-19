@@ -23,7 +23,7 @@ export function ActivitySummaryChart() {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!selectedChild && children.length === 0) {
+      if (children.length === 0) {
         setData([])
         setIsLoading(false)
         return
@@ -33,20 +33,48 @@ export function ActivitySummaryChart() {
         setIsLoading(true)
         setError(null)
 
-        // Create sample data for demonstration
-        const sampleData: ActivityData[] = [
-          {
-            name: selectedChild ? selectedChild.name : "Child",
-            feeding: 12,
-            sleeping: 8,
-            diaper: 15,
-            growth: 3,
-            medication: 2,
-            temperature: 4,
-          },
-        ]
+        const activityData: ActivityData[] = []
 
-        setData(sampleData)
+        // Fetch data for all children or just selected child
+        const childrenToFetch = selectedChild ? [selectedChild] : children
+
+        for (const child of childrenToFetch) {
+          console.log(`Fetching activity data for child: ${child.name}`)
+          
+          const response = await fetch(`/api/children/${child.id}/dashboard`, {
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache",
+            },
+          })
+
+          if (!response.ok) {
+            console.error(`Failed to fetch data for ${child.name}`)
+            continue
+          }
+
+          const events = await response.json()
+          
+          // Count events by type
+          const feedingCount = events.filter((e: any) => e.eventType === "feeding").length
+          const sleepingCount = events.filter((e: any) => e.eventType === "sleeping").length
+          const diaperCount = events.filter((e: any) => e.eventType === "diaper").length
+          const growthCount = events.filter((e: any) => e.eventType === "growth").length
+          const medicationCount = events.filter((e: any) => e.eventType === "medication").length
+          const temperatureCount = events.filter((e: any) => e.eventType === "temperature").length
+
+          activityData.push({
+            name: child.name,
+            feeding: feedingCount,
+            sleeping: sleepingCount,
+            diaper: diaperCount,
+            growth: growthCount,
+            medication: medicationCount,
+            temperature: temperatureCount,
+          })
+        }
+
+        setData(activityData)
       } catch (error) {
         console.error("Error creating activity summary data:", error)
         setError("Failed to create activity summary")

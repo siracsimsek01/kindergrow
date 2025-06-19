@@ -113,7 +113,7 @@ export function AddChildModal({ open, onOpenChange, onSuccess }: AddChildModalPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] z-[100]">
         <DialogHeader>
           <DialogTitle>Add Child</DialogTitle>
           <DialogDescription>Add a new child to track their development.</DialogDescription>
@@ -140,7 +140,7 @@ export function AddChildModal({ open, onOpenChange, onSuccess }: AddChildModalPr
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Birth Date</FormLabel>
-                  <Popover>
+                  <Popover modal={true}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
@@ -152,17 +152,26 @@ export function AddChildModal({ open, onOpenChange, onSuccess }: AddChildModalPr
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[9999]" align="start">
+                    <PopoverContent 
+                      className="w-auto p-0 z-[9999] relative" 
+                      align="start"
+                      style={{ zIndex: 9999 }}
+                      avoidCollisions={true}
+                      collisionPadding={8}
+                    >
                       <Calendar
                         mode="single"
                         selected={field.value}
-                        onSelect={field.onChange}
+                        onSelect={(date) => {
+                          field.onChange(date)
+                        }}
                         disabled={(date) => {
                           const today = new Date()
                           today.setHours(23, 59, 59, 999)
                           return date > today
                         }}
                         initialFocus
+                        className="rounded-md border"
                       />
                     </PopoverContent>
                   </Popover>

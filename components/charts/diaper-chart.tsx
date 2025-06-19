@@ -186,72 +186,20 @@ export function DiaperChart({ events, selectedChild, timeFrame }: DiaperChartPro
     return null
   }
 
-  // Ensure the bar chart also generates sample data if none exists
-  if (!events || events.length === 0 || chartData.length === 0) {
-    // Create sample data for demonstration
-    const sampleData = []
-    const today = new Date()
-
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today)
-      date.setDate(date.getDate() - i)
-
-      sampleData.push({
-        date: format(date, "MMM d"),
-        timestamp: date.toISOString(),
-        count: Math.floor(Math.random() * 8) + 1,
-        wet: Math.floor(Math.random() * 4) + 1,
-        dirty: Math.floor(Math.random() * 3) + 1,
-        mixed: Math.floor(Math.random() * 2),
-        dry: Math.floor(Math.random() * 1),
-      })
-    }
-
+  // Ensure the bar chart shows empty state only if no data exists
+  if (!events || events.length === 0) {
     return (
-      <div className="w-full h-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={sampleData}
-            margin={{
-              top: 5,
-              right: isMobile ? 10 : 30,
-              left: isMobile ? 0 : 20,
-              bottom: isMobile ? 40 : 20,
-            }}
-            barGap={0}
-            barCategoryGap={timeFrame === "week" ? 15 : 8}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: isMobile ? 10 : 12 }}
-              angle={isMobile ? -45 : 0}
-              textAnchor={isMobile ? "end" : "middle"}
-              height={isMobile ? 60 : 30}
-            />
-            <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} domain={[0, "auto"]} allowDecimals={false} />
-            <Tooltip content={<CustomTooltip />} cursor={false} />
-            <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
-            <Bar dataKey="wet" name="Wet" stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} isAnimationActive={true} />
-            <Bar
-              dataKey="dirty"
-              name="Dirty"
-              stackId="a"
-              fill="#f59e0b"
-              radius={[0, 0, 0, 0]}
-              isAnimationActive={true}
-            />
-            <Bar
-              dataKey="mixed"
-              name="Mixed"
-              stackId="a"
-              fill="#8b5cf6"
-              radius={[0, 0, 0, 0]}
-              isAnimationActive={true}
-            />
-            <Bar dataKey="dry" name="Dry" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} isAnimationActive={true} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="flex h-full items-center justify-center rounded-md border border-dashed">
+        <p className="text-sm text-muted-foreground">No diaper data available for {selectedChild?.name}</p>
+      </div>
+    )
+  }
+
+  // If we have events but no chart data, it means the events are outside the timeframe
+  if (chartData.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-md border border-dashed">
+        <p className="text-sm text-muted-foreground">No diaper data for this time period</p>
       </div>
     )
   }

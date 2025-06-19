@@ -2,12 +2,28 @@
 
 import { SignUp } from "@clerk/nextjs"
 import Image from "next/image"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
+import { useAuth } from "@clerk/nextjs"
+import { useEffect } from "react"
 import logo from "@/public/images/logo.png"
 
 export default function SignUpPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { isSignedIn } = useAuth()
   const redirectUrl = searchParams?.get("redirect_url") || "/dashboard"
+
+  useEffect(() => {
+    // Only redirect if user is signed in AND they came from a protected route
+    // Don't auto-redirect if they explicitly navigated to sign-up from landing page
+    if (isSignedIn) {
+      const autoRedirect = searchParams?.get('auto_redirect') === 'true'
+      if (autoRedirect) {
+        router.push(redirectUrl);
+      }
+      // If they're already signed in but came here explicitly, stay on the page
+    }
+  }, [isSignedIn, router, redirectUrl, searchParams]);
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">

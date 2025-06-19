@@ -152,4 +152,3 @@ export function MedicationChart({ medications, administrations, timeFrame }: Med
     </div>
   )
 }
-

@@ -1,12 +1,13 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
+import logo from "@/public/images/logo.png"
 
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-[#1e293b] flex flex-col items-center justify-center p-4">
       <div className="relative w-[100px] h-[100px] mb-6">
-        <Image src="/logo.png" alt="KinderGrow Logo" fill className="object-contain" priority />
+        <Image src={logo} alt="KinderGrow Logo" fill className="object-contain" priority />
       </div>
       <h1 className="text-4xl font-bold text-[#cbd5e1] mb-4">Page Not Found</h1>
       <p className="text-lg text-[#94a3b8] mb-8 text-center max-w-md">

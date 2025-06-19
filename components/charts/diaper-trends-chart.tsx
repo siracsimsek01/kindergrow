@@ -179,7 +179,7 @@ export function DiaperTrendsChart({ events, selectedChild, timeFrame }: DiaperTr
   if (!events || events.length === 0 || chartData.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-muted-foreground">No diaper data available</p>
+        <p className="text-muted-foreground">No diaper data available for {selectedChild?.name}</p>
       </div>
     )
   }

@@ -356,7 +356,7 @@ export default function SleepTrackingPage() {
             <TabsContent value="overview" className="space-y-4">
               <Card>
                 <CardHeader className="pb-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <CardTitle>Sleep Quality</CardTitle>
                       <CardDescription>Distribution of sleep quality</CardDescription>

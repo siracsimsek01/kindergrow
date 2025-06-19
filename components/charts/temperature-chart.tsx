@@ -159,7 +159,7 @@ export function TemperatureChart() {
   if (data.length === 0) {
     return (
       <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
-        <p className="text-sm text-muted-foreground">No temperature data available for the selected period</p>
+        <p className="text-sm text-muted-foreground">No temperature data available for {selectedChild?.name}</p>
       </div>
     )
   }

@@ -128,7 +128,7 @@ export function MedicationForm({ medication, onSubmit }: MedicationFormProps) {
                   {formData.startDate ? format(formData.startDate, "PPP") : <span>Pick a date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                 <Calendar
                   mode="single"
                   selected={formData.startDate}
@@ -153,7 +153,7 @@ export function MedicationForm({ medication, onSubmit }: MedicationFormProps) {
                   {formData.endDate ? format(formData.endDate, "PPP") : <span>Ongoing</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                 <Calendar
                   mode="single"
                   selected={formData.endDate}

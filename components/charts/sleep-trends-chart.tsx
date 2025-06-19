@@ -231,7 +231,7 @@ export function SleepTrendsChart({ events, selectedChild, timeFrame }: SleepTren
   if (!events || events.length === 0 || chartData.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-muted-foreground">No sleep data available for this time period</p>
+        <p className="text-muted-foreground">No sleep data available for {selectedChild?.name}</p>
       </div>
     )
   }
