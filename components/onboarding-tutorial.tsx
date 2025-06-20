@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, X } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 interface TutorialStep {
   title: string
@@ -25,31 +25,31 @@ const tutorialSteps: TutorialStep[] = [
     title: "Welcome to KinderGrow",
     description:
       "KinderGrow helps you track your child's development, sleep patterns, feeding schedules, and more. Let's get started with a quick tour!",
-    image: "/images/tutorial/welcome.png",
+    image: "/images/tutorial/welcome.jpg",
   },
   {
     title: "Getting Started with Sample Data",
     description:
       "To help you explore all features, we can populate your account with sample data including 4 children and a year's worth of realistic tracking events. You can remove this data anytime from the dashboard.",
-    image: "/images/tutorial/seed-data.png",
+    image: "/images/tutorial/seed-data.jpg",
   },
   {
     title: "Dashboard Overview",
     description:
       "The dashboard gives you a quick overview of your child's activities and important metrics. You can see recent events and access all tracking features.",
-    image: "/images/tutorial/dashboard.png",
+    image: "/images/tutorial/dashboard.jpg",
   },
   {
     title: "Sleep Tracking",
     description:
       "Track your child's sleep patterns, including duration, quality, and trends over time. Get insights to help establish healthy sleep routines.",
-    image: "/images/tutorial/sleep.png",
+    image: "/images/tutorial/sleep.jpg",
   },
   {
     title: "Feeding Tracking",
     description:
       "Log feeding times, amounts, and types. Monitor your child's nutrition and establish regular feeding schedules.",
-    image: "/images/tutorial/feeding.png",
+    image: "/images/tutorial/feeding.jpg",
   },
   {
     title: "Diaper Tracking",
@@ -61,14 +61,9 @@ const tutorialSteps: TutorialStep[] = [
     title: "Growth Metrics",
     description:
       "Record and visualize your child's growth over time, including height, weight, and head circumference.",
-    image: "/images/tutorial/growth.png",
+    image: "/images/tutorial/growth.jpg",
   },
-  {
-    title: "AI Insights",
-    description:
-      "Our AI analyzes your child's data to provide personalized insights and recommendations for optimal development.",
-    image: "/images/tutorial/ai.png",
-  },
+
 ]
 
 export function OnboardingTutorial() {
@@ -179,16 +174,9 @@ export function OnboardingTutorial() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-[600px] p-0 gap-0">
-        <div className="absolute top-4 right-4 z-10">
-          <Button variant="ghost" size="icon" onClick={handleSkip}>
-            <X className="h-4 w-4" />
-            <span className="sr-only">Skip tutorial</span>
-          </Button>
-        </div>
-
         <div className="relative overflow-hidden rounded-t-lg h-[300px]">
           <img
-            src={tutorialSteps[currentStep].image || "/placeholder.svg?height=300&width=600"}
+            src={tutorialSteps[currentStep].image || ""}
             alt={tutorialSteps[currentStep].title}
             className="w-full h-full object-cover"
           />

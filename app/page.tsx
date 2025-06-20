@@ -2,6 +2,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Seo } from "@/components/seo"
 import Image from "next/image"
+import logo from "@/public/images/logo.png"
+import headerImg from "@/public/images/header.png"
 
 
 export default function LandingPage() {
@@ -12,7 +14,7 @@ export default function LandingPage() {
         <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container flex h-14  items-center">
             <div className="flex items-center gap-1 font-bold">
-              <Image src="/images/logo.png" alt="Logo" width={50} height={50} className="rounded-full" />
+              <Image src={logo} alt="Logo" width={50} height={50} className="rounded-full object-contain" priority />
               <span className="text-lg">KinderGrow</span>
             </div>
             <div className="flex flex-1 items-center justify-end space-x-4">
@@ -58,11 +60,12 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center justify-center">
                   <Image
-                    src="/images/header.png"
+                    src={headerImg}
                     alt="Header Image"
                     width={500}
                     height={500}
                     className="w-full max-w-[400px] rounded-lg shadow-lg"
+                    priority
                   />
                 </div>
               </div>
@@ -345,7 +348,7 @@ export default function LandingPage() {
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-4">
                 <div className="flex items-center gap-1 font-bold">
-                  <Image src="/images/logo.png" alt="Logo" width={50} height={50} className="rounded-full" />
+                  <Image src={logo} alt="Logo" width={50} height={50} className="rounded-full" priority/>
                   <span className="text-lg">KinderGrow</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
