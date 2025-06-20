@@ -68,13 +68,16 @@ KinderGrow is a comprehensive baby development tracking application designed to 
 3. **Set up environment variables**:
     Create a `.env.local` file in the root directory with the following variables:
     ```
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_bG9naWNhbC1idWctNzIuY2xlcmsuYWNjb3VudHMuZGV2JA
-      CLERK_SECRET_KEY=sk_test_OGXlZjxJCeFOIB38hRX7zMAXatRMkES5UY9Sz3G6ZG
-      MONGODB_URI=mongodb+srv://admin:admin123@cluster0.mlqap.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
-      MONGO_DB=KinderGrow
-      NEXT_PUBLIC_APP_URL=https://9c54-31-205-198-45.ngrok-free.app
-      CLERK_WEBHOOK_SECRET=whsec_cB8gX/2gJRJQHP6LqTn+MyyfecZthCG1
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your-clerk-publishable-key
+    NEXT_PUBLIC_APP_URL=your-app-url
+    MONGO_DB=KinderGrow
+
+    # The following are secrets. Do NOT share them publicly!
+    CLERK_SECRET_KEY=your-clerk-secret-key
+    MONGODB_URI=your-mongodb-uri
+    CLERK_WEBHOOK_SECRET=your-clerk-webhook-secret
     ```
+
 
 4. **Run the development server**:
     ```bash
