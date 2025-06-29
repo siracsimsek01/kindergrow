@@ -1,4 +1,4 @@
-# KinderGrow: Baby Development Tracker
+# KinderGrow: Child Development Tracker
 
 ![KinderGrow Logo](/public/images/logo.png)
 
@@ -8,7 +8,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.3-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 [![Clerk](https://img.shields.io/badge/Clerk-Auth-purple?style=for-the-badge&logo=clerk)](https://clerk.dev/)
 
-KinderGrow is a comprehensive baby development tracking application designed to help parents monitor their child's growth, feeding, sleep patterns, and more. With an intuitive interface and powerful features, KinderGrow makes it easy to track your child's milestones and daily activities.
+KinderGrow is a comprehensive child development tracking application designed to help parents monitor their child's growth, feeding, sleep patterns, and more. With an intuitive interface and powerful features, KinderGrow makes it easy to track your child's milestones and daily activities.
 
 ## ✨ Features
 
