@@ -27,7 +27,7 @@ export function useChildren() {
 
     try {
       setIsLoading(true)
-      // console.log("Fetching children for user:", userId)
+      
       const response = await fetch("/api/children")
 
       if (!response.ok) {
@@ -35,19 +35,16 @@ export function useChildren() {
       }
 
       const data = await response.json()
-      // console.log("Children data received:", data)
       setChildren(data)
 
       // Set the first child as selected if none is selected
       if (!selectedChild && data.length > 0) {
-        // console.log("Setting first child as selected:", data[0])
         setSelectedChild(data[0])
       } else if (selectedChild && !data.find((child) => child.id === selectedChild.id)) {
         // If the currently selected child no longer exists in the data, reset selection
         setSelectedChild(data.length > 0 ? data[0] : null)
       }
     } catch (err) {
-      // console.error("Error in fetchChildren:", err)
       setError(err as Error)
     } finally {
       setIsLoading(false)
@@ -58,7 +55,7 @@ export function useChildren() {
     if (isLoaded && userId) {
       fetchChildren()
     } else if (isLoaded && !userId) {
-      // Clear children if user is not authenticated
+      
       setChildren([])
       setSelectedChild(null)
     }
@@ -88,7 +85,7 @@ export function useChildren() {
 
         setChildren((prev) => [...prev, newChild])
 
-        // Set as selected child if it's the first one
+        
         if (children.length === 0) {
           setSelectedChild(newChild)
         }

@@ -95,11 +95,10 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
       setEventType(type)
       setIsAddEventModalOpen(true)
     } else if (isOpen && !type) {
-      // If no type is provided, open the event type selector instead
+      
       setIsEventTypeSelectorOpen(true)
     } else {
       setIsAddEventModalOpen(false)
-      // Only clear event type when closing the modal
       setTimeout(() => setEventType(null), 300)
     }
   }, [])
@@ -109,7 +108,7 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
     setIsAddChildModalOpen(isOpen)
   }, [])
 
-  // Function to handle opening/closing the event type selector
+  
   const handleSetIsEventTypeSelectorOpen = useCallback((isOpen: boolean) => {
     setIsEventTypeSelectorOpen(isOpen)
   }, [])
@@ -119,17 +118,10 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
     setIsRefreshing(true)
     setLastUpdated(getSafeTimestamp())
     setRefreshKey(prev => prev + 1)
-    
-    // Don't clear children and selected child immediately to prevent UI flash
-    // They will be updated when new data loads
-    
-    // Preserve the current selected child during refresh
-    // The loadChildren function will handle maintaining the selection appropriately
-    
-    // Reduce the timeout to make the refresh feel more responsive
+  
     setTimeout(() => {
       setIsRefreshing(false)
-    }, 300) // Reduced from 500ms to 300ms for better UX
+    }, 300) 
   }, [])
 
   // Function to add a child directly to the context without full refresh
@@ -151,12 +143,12 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
     })
   }, [])
 
-  // Function to enable/disable auto-refresh
+  
   const enableAutoRefresh = useCallback(
     (enabled: boolean) => {
       setAutoRefreshEnabled(enabled)
 
-      // Clear existing interval if any
+      
       if (refreshInterval) {
         clearInterval(refreshInterval)
         setRefreshInterval(null)
@@ -202,7 +194,7 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
         const data = await response.json()
         setChildren(data)
 
-        // If there are children, try to restore the previously selected child first
+        
         if (data.length > 0) {
           const storedChildId = localStorage.getItem("selectedChildId")
           const currentSelectedId = selectedChild?._id
@@ -210,50 +202,50 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
           if (storedChildId) {
             const storedChild = data.find((child: any) => child._id === storedChildId)
             if (storedChild) {
-              // Only set if it's different from current selection to prevent unnecessary re-renders
+              
               if (!selectedChild || selectedChild._id !== storedChild._id) {
                 setSelectedChild(storedChild)
               }
             } else {
-              // Stored child not found, but if we have a current selection, try to keep it
+              
               if (currentSelectedId) {
                 const currentChild = data.find((child: any) => child._id === currentSelectedId)
                 if (currentChild) {
-                  // Current selection still exists in the data, keep it and update localStorage
+                  
                   setSelectedChild(currentChild)
                   localStorage.setItem("selectedChildId", currentChild._id)
                 } else {
-                  // Current selection doesn't exist, select first child
+                  
                   setSelectedChild(data[0])
                   localStorage.setItem("selectedChildId", data[0]._id)
                 }
               } else {
-                // No current selection, select first child
+                
                 setSelectedChild(data[0])
                 localStorage.setItem("selectedChildId", data[0]._id)
               }
             }
           } else {
-            // No stored child, but check if we have a current selection to preserve
+            
             if (currentSelectedId) {
               const currentChild = data.find((child: any) => child._id === currentSelectedId)
               if (currentChild) {
-                // Current selection exists, keep it and update localStorage
+                
                 setSelectedChild(currentChild)
                 localStorage.setItem("selectedChildId", currentChild._id)
               } else {
-                // Current selection doesn't exist, select first child
+                
                 setSelectedChild(data[0])
                 localStorage.setItem("selectedChildId", data[0]._id)
               }
             } else {
-              // No current selection, select first child
+              
               setSelectedChild(data[0])
               localStorage.setItem("selectedChildId", data[0]._id)
             }
           }
         } else {
-          // No children found, clear selected child
+          
           setSelectedChild(null)
           localStorage.removeItem("selectedChildId")
         }
@@ -273,17 +265,17 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
     loadChildren()
   }, [isLoaded, user, toast, lastUpdated])
 
-  // Update localStorage when selected child changes (with throttling)
+  
   useEffect(() => {
     if (selectedChild) {
-      // Use setTimeout to throttle localStorage updates
+      
       const timeoutId = setTimeout(() => {
         localStorage.setItem("selectedChildId", selectedChild._id)
       }, 100)
       
       return () => clearTimeout(timeoutId)
     }
-  }, [selectedChild?._id]) // Only depend on the ID to prevent unnecessary updates
+  }, [selectedChild?._id])
 
   const contextValue = useMemo(() => ({
     selectedChild,
@@ -323,10 +315,7 @@ export const ChildProvider = ({ children: reactChildren }: { children: React.Rea
   ])
 
   // Handle success callbacks from modals
-  const handleChildAdded = useCallback(() => {
-    // Child is now added directly via addChildDirectly, no need to refresh
-    // The modal handles its own success toast
-  }, [])
+  const handleChildAdded = useCallback(() => {}, [])
 
   const handleEventAdded = useCallback(() => {
     triggerRefresh()
