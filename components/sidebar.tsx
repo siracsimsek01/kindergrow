@@ -36,6 +36,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserButton } from "@clerk/nextjs"
 import { useState, useEffect } from "react"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 
 
@@ -313,10 +314,12 @@ export function Sidebar({ className }: { className?: string }) {
                     <span className="text-xs opacity-70">Manage profile</span>
                   </div>
                 </div>
+                <ThemeToggle />
               </div>
             ) : (
-              <div className="flex justify-center w-full">
+              <div className="flex flex-col items-center gap-2 w-full">
                 <UserButton afterSignOutUrl="/" />
+                <ThemeToggle />
               </div>
             )}
           </div>

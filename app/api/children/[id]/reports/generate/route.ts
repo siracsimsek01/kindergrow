@@ -73,8 +73,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     const pdfBuffer = await generateReport(reportType, reportData, startDate, endDate, child.name)
 
-    // Use native Response for binary data
-    return new Response(pdfBuffer, {
+    // Use native Response for binary data - convert Buffer to Uint8Array
+    return new Response(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
