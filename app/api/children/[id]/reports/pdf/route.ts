@@ -8,7 +8,7 @@ export const runtime = "nodejs"; // IMPORTANT: pdfkit must run on Node
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -18,6 +18,7 @@ export async function GET(
     }
 
     const { searchParams } = new URL(request.url);
+    const params = await context.params;
     const childId = params.id;
     const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
 
@@ -115,4 +116,129 @@ export async function GET(
     console.error("Error generating PDF report:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+async function generateDailyReportPDF(
+  child: any,
+  date: Date,
+  sleepEntries: any[],
+  feedingEntries: any[],
+  diaperEntries: any[],
+  medicationEntries: any[]
+): Promise<Buffer> {
+  return new Promise<Buffer>((resolve, reject) => {
+    try {
+      const chunks: Buffer[] = [];
+      const doc = new PDFDocument({ margin: 50 });
+
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // Format date
+      const formattedDate = date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      // Add title
+      doc.fontSize(20).text('Daily Report', { align: 'center' });
+      doc.moveDown();
+
+      // Add child info
+      doc.fontSize(16).text(`Name: ${child.name}`);
+      doc.fontSize(14).text(`Date: ${formattedDate}`);
+      doc.moveDown();
+
+      // Add meals section
+      doc.fontSize(16).text('Meals:', { underline: true });
+      if (feedingEntries.length > 0) {
+        feedingEntries.forEach(entry => {
+          const time = new Date(entry.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          let description = '';
+
+          if (entry.foodType === 'formula' || entry.foodType === 'breast_milk' || entry.foodType === 'cow_milk') {
+            description = `${entry.foodType.replace('_', ' ')} - ${entry.quantity}${entry.unit || 'ml'}`;
+          } else {
+            const portionMap: Record<string, string> = {
+              'none': 'None of it',
+              'some': 'Some of it',
+              'half': 'Half of it',
+              'most': 'Most of it',
+              'all': 'All of it'
+            };
+            description = `${entry.foodType || 'Food'}: ${portionMap[entry.portionConsumed] || entry.portionConsumed}`;
+          }
+
+          doc.fontSize(12).text(`${time}: ${description}`);
+        });
+      } else {
+        doc.fontSize(12).text('No meals recorded for this day.');
+      }
+      doc.moveDown();
+
+      // Add sleep section
+      doc.fontSize(16).text('Sleep time:', { underline: true });
+      if (sleepEntries.length > 0) {
+        sleepEntries.forEach(entry => {
+          const startTime = new Date(entry.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const endTime = entry.endTime
+            ? new Date(entry.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : 'ongoing';
+
+          const duration = entry.endTime
+            ? formatDuration(new Date(entry.endTime).getTime() - new Date(entry.startTime).getTime())
+            : 'ongoing';
+
+          doc.fontSize(12).text(`${startTime} to ${endTime} (${duration})`);
+        });
+      } else {
+        doc.fontSize(12).text('No sleep records for this day.');
+      }
+      doc.moveDown();
+
+      // Add diaper changes section
+      doc.fontSize(16).text('Nappy changes/Toilet:', { underline: true });
+      if (diaperEntries.length > 0) {
+        diaperEntries.forEach(entry => {
+          const time = new Date(entry.changeTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const type = entry.type.charAt(0).toUpperCase() + entry.type.slice(1);
+
+          doc.fontSize(12).text(`${type} nappy at ${time}`);
+        });
+      } else {
+        doc.fontSize(12).text('No diaper changes recorded for this day.');
+      }
+      doc.moveDown();
+
+      // Add medication section
+      doc.fontSize(16).text('Medication:', { underline: true });
+      if (medicationEntries.length > 0) {
+        medicationEntries.forEach(entry => {
+          const time = new Date(entry.administrationTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          doc.fontSize(12).text(`${entry.medicationName} at ${time}`);
+        });
+      } else {
+        doc.fontSize(12).text('No medications recorded for this day.');
+      }
+      doc.moveDown();
+
+      // Add comments section
+      doc.fontSize(16).text('Any comments:', { underline: true });
+      doc.fontSize(12).text('');
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function formatDuration(durationMs: number): string {
+  const hours = Math.floor(durationMs / (1000 * 60 * 60));
+  const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  return `${hours}h ${minutes}m`;
 }

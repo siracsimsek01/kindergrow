@@ -79,15 +79,14 @@ export function Sidebar() {
             <Menu className="h-5 w-5" />
           </Button>
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="relative w-8 h-8">
-              <Image
-                src="/images/logo.png"
-                alt="KinderGrow Logo"
-                fill
-                className="object-contain"
-                priority
-              />
-            </div>
+            <Image
+              src="/images/logo.png"
+              alt="KinderGrow Logo"
+              width={32}
+              height={32}
+              className="object-contain"
+              priority
+            />
             <span className="text-lg font-semibold">KinderGrow</span>
           </Link>
         </div>
